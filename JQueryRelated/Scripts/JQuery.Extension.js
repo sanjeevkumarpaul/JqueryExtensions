@@ -1,2 +1,2 @@
-//All Utility functions for Jquery
-  
+//All Utility functions for Jquer
+//JQuery.Extension.js

@@ -1,0 +1,229 @@
+/* AJAX CALLS INTERCEPTION */
+
+if (!window.console) window.console = {};
+if (!window.console.log) window.console.log = function () { };
+var console = window.console;
+
+
+var interceptManager = {
+
+    headers: []    /*Should be key/value pair as headers = [ {key: 'one', value : 1} [, {key: 'two', value : 2} [, ...] ] ] */,
+
+    injectHeadersToAjax: function (ajaxRequest)
+    {
+        $.each(interceptManager.headers, function (index, header) {
+
+            ajaxRequest.setRequestHeader(header.key, header.value);   //Adding the key/pair value to Ajax Header
+        });
+    },
+
+    injectHeadersToKendoForm: function (kendoData)
+    {
+        var data = kendoData;
+
+        $.each(interceptManager.headers, function (index, header) {
+            var _arr = {};
+            _arr[header.key] = header.value;
+
+            data = $.extend({}, data, _arr);   //Adding the key/pair value to Ajax Header
+        });
+
+        return data;
+    }
+};
+
+(function () {
+    var send = XMLHttpRequest.prototype.send;
+    var open = XMLHttpRequest.prototype.open;
+
+    var config = new Object();
+
+    XMLHttpRequest.prototype.open = function (a, b) {
+        config.method = a;
+        config.url = b;
+
+        open.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function (data)
+    {                
+        if (!InterceptExceptions())
+            interceptManager.injectHeadersToAjax(this);
+
+        return send.apply(this, arguments);
+    };
+
+
+    function InterceptExceptions()
+    {
+        var flag = false;
+        if (config.url)
+        {            
+            var URL = config.url.toUpperCase();
+            $.each(CONST_IGNORE_INTERCEPT_URL, function (index, uri)
+            {
+                if (URL.indexOf(uri.toUpperCase()) >= 0) { flag = true; return false; }
+            });
+        }
+
+        //if (!flag) console.log('URL -> ' + config.url);
+
+        //console.log('Is Exception:- ' + flag);
+        return flag;
+    }
+
+    function requestCompleted(e)
+    {
+        console.dir(arguments)
+    }
+
+}());
+/* END: AJAX CALLS INTERCEPTION */
+
+$(document).ready(function ()
+{
+    getInterceptHeaderInformation();
+    injectHeadersAsHiddenInputsIntoHtmlForms();
+    injectInterceptOnKendoUploaders();
+
+    var kendoWindows = [];
+
+    //Read response Headers and put them into headers.
+    function getInterceptHeaderInformation()
+    {
+        try
+        {
+            //console.log("~~INTERCEPTS~~")
+            var intercepts = eval(CONST.INTERCEPT_CONTEXT_COLLECTION);
+            var interceptsEnc = eval(CONST.INTERCEPT_CONTEXT_ENCRYPT);
+            console.log(intercepts);
+            //console.log(interceptsEnc);
+            //console.log("~~END~~")
+
+            if (interceptsEnc != null)
+            {
+                interceptManager.headers.push({ key: CONST.INTERCEPT_CONTEXT_ENCRYPT, value: interceptsEnc });
+            }
+
+            //$.each(interceptManager.headers, function (index, h) {
+            //    console.log('Key - ' + h.key + ', Value - ' + h.value);
+            //});
+        }
+        catch(e)
+        {
+            console.log('Exception at Intercept:- ' + e);
+        }
+    }
+    
+    function injectHeadersAsHiddenInputsIntoHtmlForms ()
+    {
+        var _hidden = "<input type='hidden' id='~k' name='~k' value='~v' />";
+        var _elements = [];
+
+        if (interceptManager.headers.length > 0 && $("form").length > 0) {
+            $.each(interceptManager.headers, function (index, header) {
+                _elements.push(
+                        _hidden.replace(/~k/g, header.key).replace(/~v/g, header.value)
+                    );
+            });
+
+            $("form").each(function ()
+            {
+                var _form = $(this);    //Each form element
+
+                $.each(_elements, function (index, element)
+                {
+                    $(element).appendTo(_form);
+                });
+
+            });
+        }
+    }
+
+    function injectInterceptOnKendoUploaders()
+    {
+        //1.
+        $(document).find("[kendo-upload]").each(function (index, uploader)
+        {
+            waitOnKendoToCreateAndInjectUploadEvent(uploader);
+        });
+        
+        var _kendowWindowTimeInterval = 0;
+        var kendoWindowTimeoutId = window.setInterval(findKendoWindowsAndInjectInterceptForUploaders, 500);
+
+        function findKendoWindowsAndInjectInterceptForUploaders()
+        {
+            _kendowWindowTimeInterval++;
+
+            $(document).find("[kendo-window]").each(function (index, win)
+            {
+                var _winName = $(win).attr('kendo-window');
+
+                if ($.inArray(_winName, kendoWindows) == -1) {
+                    kendoWindows.push(_winName);
+                    findUploadersWithinWindows(win);
+
+                }
+
+                function findUploadersWithinWindows(win)
+                {
+                    var _kendowUploaderTimeInterval = 0;
+                    var currentFindTimeoutId = window.setInterval(findUploaders, 100);
+
+                    function findUploaders()
+                    {
+                        $(win).find("[kendo-upload]").each(function (index, uploader) {
+                            clearInterval(currentFindTimeoutId);
+                            waitOnKendoToCreateAndInjectUploadEvent(uploader);
+                        });
+
+                        if (_kendowUploaderTimeInterval >= 200) clearInterval(currentFindTimeoutId);
+                    }
+                }
+            });
+
+            if (_kendowWindowTimeInterval >= 120) clearInterval(kendoWindowTimeoutId); //only check for a minute.           
+        }
+
+        //2.
+        function waitOnKendoToCreateAndInjectUploadEvent(uploader)
+        {
+            var currentTimeoutId = window.setInterval(checkForKendoCreation, 100);
+
+            function checkForKendoCreation()
+            {
+                var kendoUpload = $(uploader).data("kendoUpload");  //console.dir(kendoUpload);
+                if (kendoUpload == null) return;
+
+                clearInterval(currentTimeoutId);
+                injectUploadEvent(kendoUpload);
+            }
+        }
+
+        //3.
+        function injectUploadEvent(kendoUploader)
+        {
+            if (kendoUploader != null)
+            {
+                kendoUploader.bind("upload", function (e)
+                {
+                    var xhr = e.XMLHttpRequest; 
+                    if (xhr)  /*IE < 10 will not support FILE API, hence XMLHttpRequest is always undefiend as per Kendo */
+                    {
+                        xhr.addEventListener("readystatechange", function (e)
+                        {                    
+                            if (xhr.readyState == 1 /* OPENED */)                            
+                                interceptManager.injectHeadersToAjax(xhr);                            
+                        });
+                    }
+                    else
+                    {
+                        var data = interceptManager.injectHeadersToKendoForm(e.data);
+                        e.data = data;
+                    }
+
+                });
+            }
+        }
+    }
+});

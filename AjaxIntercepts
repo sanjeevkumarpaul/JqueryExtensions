@@ -1,4 +1,16 @@
 /* AJAX CALLS INTERCEPTION */
+var CONST = {
+
+    INTERCEPT_COOKIE_PREFIX: '_INTERCEPT',
+    INTERCEPT_CONTEXT_COLLECTION: '_INTERCEPT_CURRENT_CONTEXT_COLLECTIONS_',
+    INTERCEPT_CONTEXT_ENCRYPT: '_INTERCEPT_CURRENT_CONTEXT_ENCRYPT_'
+
+};
+
+var CONST_IGNORE_INTERCEPT_URL = ['ARTERYSIGNALR', '__BROWSERLINK', 'HOME/PING' ];
+
+
+
 
 if (!window.console) window.console = {};
 if (!window.console.log) window.console.log = function () { };
@@ -227,3 +239,52 @@ $(document).ready(function ()
         }
     }
 });
+
+
+
+/* Some String Extensions */
+
+(function ($) {
+    isInvalid = function (str, pattern)
+    {
+        if ($.trim(str) == '') return true;
+        if ($.trim(pattern) == '') return true;
+
+        return false;
+    }
+
+
+    $.startWith = function (str, pattern, ignoreCase)
+    {
+        ignoreCase = ignoreCase || false;
+
+        if (!isInvalid(str, pattern))
+        {
+            if (ignoreCase) {
+                str = str.toUpperCase();
+                pattern = pattern.toUpperCase();
+            }
+
+            return str.match('^' + pattern);
+        }
+
+        return false;
+    };
+
+    $.endWith = function (str, pattern, ignoreCase) {
+        ignoreCase = ignoreCase || false;
+
+        if (!isInvalid(str, pattern))
+        {
+            if (ignoreCase) {
+                str = str.toUpperCase();
+                pattern = pattern.toUpperCase();
+            }
+
+            return str.match(pattern + '$');
+        }
+
+        return false;
+    };
+
+}(jQuery));

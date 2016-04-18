@@ -1,0 +1,710 @@
+public static class AttributeExtensions
+    {
+        //======================================================================================
+        public static string ToDescription<T>(this T value)
+        {
+            var fieldInfo = value.GetType().GetField(value.ToString());
+
+            DescriptionAttribute[] attributes =
+                (DescriptionAttribute[])fieldInfo.GetCustomAttributes(
+                typeof(DescriptionAttribute),
+                false);
+
+            if (attributes != null &&
+                attributes.Length > 0)
+                return attributes[0].Description;
+            else
+                return value.ToString();
+        }
+
+
+
+        //======================================================================================
+        public static TAttribute GetAttribute<TAttribute>(this Enum value) where TAttribute : Attribute
+        {
+            var type = value.GetType();
+            var name = Enum.GetName(type, value);
+            return type.GetField(name) 
+                .GetCustomAttributes(false)
+                .OfType<TAttribute>()
+                .SingleOrDefault();
+        }
+    }
+    
+    
+    public static class BoolExtensions
+    {
+        public static string ShortYN(this bool b)
+        {
+            return b ? "Y" : "N";
+        }
+
+        public static string ShortYN(this bool? b)
+        {
+            return b.HasValue ? "N" : b.Value.ShortYN();
+        }
+
+    }
+    
+    
+    public static class DateTimeExtensions
+    {
+        private static bool IsLocal(string zone)
+        {
+            return TimeZone.CurrentTimeZone.StandardName.EqualsIgnoreCase(zone);
+        }
+        
+        
+        public static DateTime ToSpecificTimeZone(this DateTime time)
+        {
+            var zone = TimeZones.Current;
+            
+            return zone.Empty() || IsLocal(zone) ? time : TimeZoneInfo.ConvertTimeFromUtc(TimeZoneInfo.ConvertTimeToUtc(time, TimeZoneInfo.Local), 
+                                                                                          TimeZoneInfo.FindSystemTimeZoneById(zone));
+        }
+
+        public static TimeSpan Next12AM(this DateTime date)
+        {
+            TimeSpan _time = date.TimeOfDay;
+
+            return (new TimeSpan(23, 60, 60) - _time);
+        }
+    }
+    
+    
+    public static class DictionaryExtension
+    {
+        public static string ToStringExt<T>(this Dictionary<string, T> dict) 
+        {
+            string _val = "";
+
+            if (dict != null)
+            {
+                foreach (var key in dict.Keys)
+                    _val += string.Format("[{0}={1}]", key, dict[key].ToString());
+            }
+
+            return _val;
+        }
+    }
+    
+    
+   public static class EnumExtensions
+    {
+        public static string Description<T>(this T en) where T : struct
+        {
+            FieldInfo fi = en.GetType().GetField(en.ToString());
+
+            DescriptionAttribute[] attributes = (DescriptionAttribute[])fi.GetCustomAttributes(typeof(DescriptionAttribute), false);
+
+            if (attributes != null && attributes.Length > 0) return attributes[0].Description;
+            else return en.ToString();            
+        }
+
+        public static T ToEnum<T>(this string enumValue) where T: struct
+        {
+            T result;
+
+            Enum.TryParse<T>(enumValue, out result);
+
+            return result;
+        }
+
+    }
+    
+    
+    public static class ExceptionExtensions
+    {
+        public static IEnumerable<Exception> ToList(this Exception ex)
+        {
+            var result = new List<Exception>();
+            var current = ex;
+            while (current != null)
+            {
+                result.Add(current);
+                current = current.InnerException;
+            }
+            return result;
+        }
+
+        public static IEnumerable<String> ToMessages(this Exception ex)
+        {
+            var result = ex.ToList().Select(m => m.Message);
+            return result;
+        }
+    }
+    
+    
+    public static class NullableExtensions
+    {
+        private static T Cast<T>(this T? val) where T : struct
+        {
+            if (!val.HasValue) return default(T);
+
+            return (T)val;
+        }
+        
+        
+        public static bool Cast(this bool? val)
+        {
+            return val.Cast<bool>();
+        }
+
+        public static int Cast(this int? val)
+        {
+            return val.Cast<int>();
+        }
+
+        public static float Cast(this float? val)
+        {
+            return val.Cast<float>();
+        }
+
+        public static double Cast(this double? val)
+        {
+            return val.Cast<double>();
+        }
+
+        public static long Cast(this long? val)
+        {
+            return val.Cast<long>();
+        }
+
+        public static DateTime Cast(this DateTime? val)
+        {
+            return val.Cast<DateTime>();
+        }
+
+        public static TimeSpan Cast(this TimeSpan? val)
+        {
+            return val.Cast<TimeSpan>();
+        }
+
+        public static short Cast(this short? val)
+        {
+            return val.Cast<short>();
+        }
+
+        
+    }
+    
+    
+    public static class ObjectExtension
+    {
+        public static bool Empty<T>(this T obj, bool considerZeroAsNull = false)
+        {
+            string value = string.Format("{0}", obj);
+            if (considerZeroAsNull && value.Equals("0")) value = "";
+
+            return value.Empty();
+        }
+
+        public static bool Null(this object obj)
+        {
+            return obj == null;
+        }
+
+        public static string ToStringExt(this object obj, bool minMaxDateToEmpty = false)
+        {
+            return (obj.ToString().ToLower() == "system.byte[]") ?
+                string.Format("content-length: {0}", ((byte[])obj).Length) : 
+                (minMaxDateToEmpty && obj.GetType().Equals(typeof(DateTime))  ? obj.ToString().MaxMinDateToEmpty() : obj.ToString());
+        }
+
+        public static string MaxMinDateToEmpty(this string date)
+        {
+            try
+            {
+                DateTime _date = DateTime.Parse(date);
+                //return (_date == DateTime.MinValue || _date == DateTime.MaxValue) ? "" : date;
+                return (_date <= AppConstant.SQLDateTimeMin || _date >= AppConstant.SQLDateTimeMax) ? "" : date;
+            }
+            catch { }
+
+            return date;
+        }
+
+        public static T Cast<T>(this string val) where T : IConvertible
+        {
+            return (T)Convert.ChangeType(val, typeof(T));            
+        }
+
+
+        public static List<PropertyInfo> Properties<T>(this T obj, bool virtuals = false, bool privates = false)
+        {
+            List<PropertyInfo> pros = new List<PropertyInfo>();
+
+            Type _type = obj.GetType();
+            BindingFlags Flags = BindingFlags.Public | BindingFlags.Instance | (privates ? BindingFlags.NonPublic : BindingFlags.Instance);
+
+            foreach (PropertyInfo property in _type.GetProperties(Flags))
+            {
+                if (!virtuals)
+                    if (_type.GetProperty(property.Name).GetGetMethod().IsVirtual) continue;
+
+                pros.Add(property);
+
+            }
+
+            return pros;
+        }
+
+        public static List<string> PropertyNames<T>(this T obj, bool virtuals = false, bool privates = false)
+        {
+            List<string> props = new List<string>();
+
+            obj.Properties(virtuals, privates).ForEach(p => props.Add(p.Name));
+
+            return props;
+        }
+
+        public static T GetValue<T>(this object obj, string property, object defaultValue = null)
+        {
+            return (T)obj.GetType().GetProperty(property).GetValue(obj, null);
+        }
+
+        public static string GetVal(this object obj, string property)
+        {
+            try
+            {
+                return obj.GetType().GetProperty(property).GetValue(obj, null).ToString();
+            }
+            catch { }
+
+            return string.Empty;
+        }
+
+        public static void SetProperty<T>(this T obj, string propertyName, object propertyvalue) where T : class
+        {
+            PropertyInfo propertyInfo = obj.GetType().GetProperty(propertyName);
+            if (propertyInfo != null)
+            {
+                propertyInfo.SetValue(obj, propertyvalue, null);
+            }
+        }
+
+        public static dynamic GetPropertyValueViaAttribute<A, T>(this object obj, T argument) where A: Attribute
+                                                                                                                    
+        {
+            foreach (var property in obj.Properties())
+            {
+                CustomAttributeData attribute = property.GetCustomAttributesData().FirstOrDefault(a => a.GetType() == typeof(A));
+                if (attribute != null)
+                {
+                    if (argument != null)
+                    {                        
+                        CustomAttributeTypedArgument typeArgument = attribute.ConstructorArguments.FirstOrDefault(c => c.GetType() == argument.GetType());
+                        if (typeArgument != null)
+                        {                            
+                            if (((T)typeArgument.Value).Equals(argument)) return property.GetValue(obj, null);
+                        }
+                    }
+                    else return property.GetValue(obj, null);
+                }                
+            }
+
+            return null;
+        }
+
+        public static string CallerMethodName<T>(this T obj, int level = 3)
+        {
+            string name = "UnKnown";
+
+            try
+            {
+                StackTrace stackTrace = new StackTrace();           // get call stack
+                StackFrame[] stackFrames = stackTrace.GetFrames();  // get method calls (frames)
+
+                while (stackFrames.Length < level) level--;
+
+                StackFrame callingFrame = stackFrames[level];
+                name = callingFrame.GetMethod().Name;
+            }
+            catch { }
+
+            return name;
+        }
+
+        public static string CallerMethodNameStack<T>(this T obj, int level = 3)
+        {
+            string name = "UnKnown";
+
+            try
+            {
+                StackTrace stackTrace = new StackTrace();           // get call stack
+                StackFrame[] stackFrames = stackTrace.GetFrames();  // get method calls (frames)
+
+                while (stackFrames.Length < level) level--;
+
+                List<string> requiredFrames = new List<string>();
+                for(int index = level; index > 0; index++)
+                {
+                    name = stackFrames[index].GetMethod().Name;
+                    if (name.StartsWith("_")) break;
+                    requiredFrames.Add(stackFrames[index].GetMethod().Name);
+                }
+
+                requiredFrames.Reverse();
+
+                name = requiredFrames.JoinExt(" -> ");
+            }
+            catch { }
+
+            return name;
+        }
+
+        public static string TextIn<T>(this T item, string prefix = "") where T : class
+        {
+            try
+            {
+                var properties = typeof(T).GetProperties();
+                //Enforce.That(properties.Length == 1);
+                return string.Format("{0} {1}: {2}", prefix.ToEmpty(), properties[0].Name, item);
+            }
+            catch { return string.Format("{0} - {1}", prefix.ToEmpty(), item); }
+        }
+
+        public static IList<T> RemoveEx<T>(this IList<T> elements, IList<T> items)
+        {
+            if (items != null)
+                foreach (T item in items) elements.Remove(item);
+            
+            return elements;
+        }
+
+        //public static bool AnyExt<T>(this T item, )
+
+        public static string UserField<T>(this T obj, bool isAdded = false, IList<string> propertiesToIgnore = null)
+        {
+            var fields = (List<string>)obj.PropertyNames().RemoveEx<string>(propertiesToIgnore);
+            string userField = string.Empty;
+
+            bool inInserted = fields.Any(f => EntityConstants.Insert_UserFieldNames.Any(u => u.EqualsIgnoreCase(f)));
+            bool inModified = fields.Any(f => EntityConstants.Update_UserFieldNames.Any(u => u.EqualsIgnoreCase(f)));
+
+
+            fields.Find(f =>
+            {
+                if (isAdded && inInserted)
+                {
+                    if ((userField = EntityConstants.Insert_UserFieldNames.Find(u => u.EqualsIgnoreCase(f))) == null)
+                        userField = EntityConstants.Update_UserFieldNames.Find(u => u.EqualsIgnoreCase(f));
+                }
+                else
+                {
+                    if ((userField = EntityConstants.Update_UserFieldNames.Find(u => u.EqualsIgnoreCase(f))) == null)
+                        userField = EntityConstants.Insert_UserFieldNames.Find(u => u.EqualsIgnoreCase(f));
+                }
+
+                return !userField.Empty();
+            });
+
+
+            return userField;
+        }
+
+        public static string JoinExt<T>(this IEnumerable<T> objs, string seprator=" ")  
+        {            
+            string joinstr = "";
+            if (!objs.Null()) 
+                foreach (T obj in objs) joinstr = string.Format("{0}{1}{2}", joinstr, joinstr.Empty() ? "" : seprator, obj);
+
+            return joinstr.Trim().TrimEx(seprator);
+        }
+    }
+    
+    
+    
+     public static partial class StringExtensions
+    {
+        public static string FriendlyEntityStateName(this string entityState)
+        {
+            switch (entityState.ToUpper().Trim())
+            {
+                case "ADDED": return "Added";
+                case "MODIFIED": return "Modified";
+                case "DELETED": return "Deleted";
+                default: return "Unknown";
+            }
+        }
+
+        public static string ToEmpty(this string str)
+        {
+            if (string.IsNullOrWhiteSpace(str)) str = string.Empty;
+
+            return str;
+        }
+
+        public static string ToNull(this string str)
+        {
+            if (str.Empty()) return null;
+
+            return str;
+        }
+
+        public static string ToDefault(this string str, string defaultValue = "")
+        {
+            if (!str.Empty()) return str;
+
+            return defaultValue;
+        }
+
+        public static string Validate(this string str, string value = "")
+        {
+            return str.Empty() ? "" : str;
+        }
+
+        public static bool Empty(this string str)
+        {
+            return string.IsNullOrWhiteSpace(str);
+        }
+
+        public static string RemoveSeprators(this string str)
+        {
+            return Regex.Replace(str, "[^0-9a-zA-Z]+", "");
+        }
+
+        public static string[] SplitCamalized(this string str)
+        {
+            return Regex.Split(str, "([A-Z])");
+        }
+
+        public static string[] ToLower(this string[] strs)
+        {
+            for (var index = 0; index < strs.Length; index++) strs[index] = strs[index].ToLower();
+
+            return strs;
+        }
+        public static string[] ToUpper(this string[] strs)
+        {
+            for (var index = 0; index < strs.Length; index++) strs[index] = strs[index].ToUpper();
+
+            return strs;
+        }
+
+        public static string[] SplitEx(this string str, char delimiter = ' ')
+        {
+            return str.Split(new char[] { delimiter }, StringSplitOptions.RemoveEmptyEntries);            
+        }
+
+        public static int ShotterLength(this string str, int defaultLen = 3)
+        {
+            return (str.Length <= defaultLen) ? str.Length : defaultLen;
+        }
+
+
+        public static string FriendlyColumnName(this String str)
+        {
+            str = String.Join(" ", str.Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries));
+
+            TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
+            str = textInfo.ToTitleCase(str);
+
+            return str;
+        }
+
+        public static bool EqualsIgnoreCase(this string str, string withStr)
+        {
+            return EqualsText(str, withStr);
+            //return str.Equals(withStr, StringComparison.CurrentCultureIgnoreCase);
+        }
+
+        public static string RemoveDomain(this string str)
+        {
+            //int pos = -1;
+
+            //return (!str.Empty() && (pos = str.LastIndexOf('\\')) >= 0) ? str.Substring(pos + 1) : str; 
+            return str.TakeLast('\\');
+        }
+
+        public static string TakeLast(this string str, char delimter = '.')
+        {
+            int pos = -1;
+
+            return (!str.Empty() && (pos = str.LastIndexOf(delimter)) >= 0) ? str.Substring(pos + 1) : str;
+        }
+
+        public static string TakeLast(this string str, string delimter = ".")
+        {
+            int pos = -1;
+
+            return (!str.Empty() && (pos = str.LastIndexOf(delimter)) >= 0) ? str.Substring(pos + 1) : str;
+        }
+
+
+        public static Int32 ToInt(this string str)
+        {
+            int result = 0;
+
+            Int32.TryParse(str, out result);
+
+            return result;
+        }
+
+        public static DateTime ToDateTime(this string str, bool OnlySeconds = false)
+        {
+            DateTime mDateTime;
+            DateTime.TryParse(str, out mDateTime);
+            mDateTime = (mDateTime.Equals(DateTime.MinValue)) ? DateTime.Now : mDateTime;
+
+            return OnlySeconds ? Convert.ToDateTime(mDateTime.ToString(AppConstant.DateFormat)) : mDateTime;
+        }
+
+
+        public static bool IsNumericTypeName(this string typeName)
+        {
+            if (!typeName.Empty())
+            {
+                switch (typeName.ToUpper())
+                {
+                    case "BYTE":
+                    case "SBYTE":
+                    case "INT":
+                    case "INT32":
+                    case "INT64":
+                    case "UINT":
+                    case "DECIMAL":
+                    case "FLOAT":
+                    case "SHORT":
+                    case "USHORT":
+                    case "LONG":
+                    case "ULONG":
+                    case "DOUBLE":
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static string TrimEx(this string str, string param)
+        {
+            if (str.Empty() || param.Empty()) return str;
+            if (!str.StartsWith(param) && !str.EndsWith(param)) return str;
+
+            string tstr = str;
+
+            while(tstr.EndsWith(param))
+            {
+                tstr = tstr.Substring(0, tstr.Length - param.Length);
+            }
+            while (tstr.StartsWith(param))
+            {
+                tstr = tstr.Substring(param.Length);
+            }
+           
+            return tstr;
+        }
+
+        public static string SQLQueryFormat(this string strTable, string condition = null, bool EmptyWithoutCondition = true)
+        {
+            string query = "";
+            if (!(EmptyWithoutCondition && condition.Empty()))
+            {
+                if (!strTable.Empty())  query += string.Format("SELECT * FROM [{0}] ", strTable.ToUpper());
+                if (!condition.Empty()) query += string.Format(" WHERE ( {0} ) ",condition.ToUpper());
+            }
+            return query;
+        }
+
+
+        public static string SQLIgnoreCase(this string str)
+        {
+            return string.Format("Lower({0})", str);
+        }
+
+        public static string Left(this string str, int length = 1)
+        {
+            if (str.Empty()) return str;
+
+            if (str.Length < length) return str;
+
+            return str.Substring(0, length);
+        }
+
+        public static bool IsDate(this string str)
+        {
+            try
+            {
+                DateTime.Parse(str);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+
+    public static partial class StringExtensions
+    {
+        public static string FormatWith(this string format, params object[] args)
+        {
+            return string.Format(format.ToSafeString(), args);
+        }
+
+        public static string ToSafeString(this string str)
+        {
+            return (str ?? string.Empty);
+        }
+
+        public static string ToSafeString(this object obj)
+        {
+            return (obj.ToString().ToSafeString());
+        }
+
+
+        public static bool IsNullOrEmpty(this String str)
+        {
+            return String.IsNullOrEmpty(str);
+        }
+
+        public static bool IsNullOrWhiteSpace(this String str)
+        {
+            return String.IsNullOrWhiteSpace(str);
+        }
+
+        public static bool EqualsText(this string p1, string p2)
+        {
+            var str1 = p1.ToSafeString();
+            var str2 = p2.ToSafeString();
+            return str1.Equals(str2, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool StartsWithIgnoreCase(this string str1, string str2)
+        {
+            return str1.ToSafeString().StartsWith(str2.ToSafeString(), StringComparison.OrdinalIgnoreCase);
+        }
+
+
+        public static bool ContainsIgnoreCase(this string str1, string str2)
+        {
+            return str1.ToSafeString().ToLower().Contains(str2.ToSafeString().ToLower());
+        }
+
+        public static bool EqualsRegex(this string input, string pattern)
+        {
+            return Regex.IsMatch(input.ToSafeString(), pattern);
+        }
+    }
+
+    
+    
+    public static class TypeExtension
+    {
+        public static void AddToDynamicLinqPredefinedType(this Type current)
+        {
+            var type = typeof(DynamicQueryable).Assembly.GetType("System.Linq.Dynamic.ExpressionParser");
+
+            FieldInfo field = type.GetField("predefinedTypes", BindingFlags.Static | BindingFlags.NonPublic);
+
+            Type[] predefinedTypes = (Type[])field.GetValue(null);
+
+            Array.Resize(ref predefinedTypes, predefinedTypes.Length + 1);
+            predefinedTypes[predefinedTypes.Length - 1] = current;
+
+            field.SetValue(null, predefinedTypes);
+        }
+    }
+    

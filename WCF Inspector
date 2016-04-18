@@ -1,0 +1,605 @@
+using System.ServiceModel;
+using System.ServiceModel.Configuration;
+using System.ServiceModel.Description;
+using System.Text;
+using System.Web.Configuration;
+
+namespace Ex.Common.Services.Interceptors
+{
+    /// <summary>
+    /// Takes ServiceContract and attaches ClientSide IEndpoint Behavior
+    /// </summary>
+    public class ClientInterceptor
+    {
+        static ClientInterceptor() { }
+
+        public static void InduceInspectors<T>(T service)
+        {
+            InduceInspector(service, new ClientEndpointBehaviorInspector());
+        }
+
+        public static void InduceInspector<T>(T service, IEndpointBehavior behavior)
+        {
+            var endPoint = service.GetValue<ServiceEndpoint>(ServiceConstant.EndpointProperty);
+            if (endPoint != null)
+            {
+                bool _foundFlag = false;
+                if (endPoint.Behaviors.Count > 0)
+               {
+                    foreach(var _behavior in endPoint.Behaviors)
+                    {
+                        if (_behavior is ClientEndpointBehaviorInspector) { _foundFlag = true; break; }
+                    }
+               }
+                
+               if(!_foundFlag) endPoint.Behaviors.Add(behavior);
+            }
+
+            //.......................................
+            //With version 4.5 an above, we can use below property.
+            //endPoint.EndpointBehaviors.Add(new ClientEndpointBehaviorInspector());
+            //.......................................
+        }
+
+    }
+}
+
+//Header for Inspectors ---
+using EX.Common.Constant;
+using EX.Common.XMLSerializer;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel.Channels;
+using System.Text;
+using System.Xml;
+
+namespace EX.Common.Services.Inspectors.Headers
+{
+    public class ExMessageHeaderInherit : MessageHeader
+    {
+        public ExMessageHeaderInherit() { }
+        public ExMessageHeaderInherit(ExServiceHeader customHeader) { Header = customHeader; }
+
+
+        public ExServiceHeader Header { get; set; }
+
+
+        #region ^Override(s)
+        public override string Name
+        {
+            get { return ServiceConstant.ServiceHeader; }
+        }
+
+        public override string Namespace
+        {
+            get { return ServiceConstant.ServiceNamespace; }
+        }
+
+        protected override void OnWriteHeaderContents(System.Xml.XmlDictionaryWriter writer, MessageVersion messageVersion)
+        {
+            string data = Serializer.Serialize<ExServiceHeader>(Header);
+
+            writer.WriteElementString(ServiceConstant.ServiceHeader, ServiceConstant.ServiceNamespace, data);
+        }
+
+        public static ExServiceHeader ReadHeader(Message request)
+        {
+            ExServiceHeader data = null;
+            int position = request.Headers.FindHeader(ServiceConstant.ServiceHeader, ServiceConstant.ServiceNamespace);
+            if (position >= 0)
+            {
+                MessageHeaderInfo headerInfo = request.Headers[position];
+                XmlNode[] content = request.Headers.GetHeader<XmlNode[]>(position);
+
+                data = Serializer.DeSerialize<ExServiceHeader>(content[0].InnerText);
+            }
+
+            return data;
+        }
+
+        #endregion ~Override(s)
+
+    }
+}
+
+
+using Ex.Common.Web;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Text;
+using Ex.Common.Reports;
+
+using Ex.Common.Extension;
+using Ex.Common.Web.UserDetails;
+
+namespace Ex.Common.Services.Inspectors.Headers
+{
+    /// <summary>
+    /// Used for Custom Header at the SOAP level.
+    /// </summary>
+    [DataContract]
+    public partial class ExServiceHeader 
+    {
+        #region ^constructor
+        public ExServiceHeader() { Init(); }
+        #endregion ~constructor
+
+        #region ^User Information
+
+        [DataMember(Order = 0)]
+        public string GroupId { get; set; }
+
+        [DataMember(Order=1)]
+        public string Browser { get; set; }
+
+        [DataMember(Order = 2)]
+        public string UserId { get; set; }
+
+        [DataMember(Order = 3)]
+        public DateTime Time { get; set; }
+
+        [DataMember(Order = 4)]
+        public string Url { get; set; }
+
+        [DataMember(Order = 5)]
+        public bool AuditableFlag { get; set; }
+
+        [DataMember(Order = 6)]
+        public string profileId { get; set; }
+
+        #endregion ~User Information
+
+        #region ~Log Information
+
+        [DataMember(Order = 7)]
+        public string CorrelationID { get; set; }
+   
+
+        #endregion ~Log Information
+
+
+        #region ~Reports Information
+
+        [DataMember(Order = 8)]
+        public string ReportDept { get; set; }
+
+        #endregion ~Reports Information
+
+
+    }
+
+    /// <summary>
+    /// All Private Methods
+    /// </summary>
+    public partial class ExServiceHeader
+    {
+        #region ^methods
+        private void Init()
+        {
+            this.UserId = WebIdentity.CurrentExLoggedUserName;
+            this.Time = WebIdentity.RequestTime;
+            this.Browser = WebIdentity.Browser;
+            this.Url = WebIdentity.URL;
+            this.AuditableFlag = true;
+            this.profileId = WebIdentity.CurrentExProfileId;
+            this.ReportDept = ReportsProcess.ReportDeptFromHeader();
+            this.GroupId = Guid.NewGuid().ToString().Replace("-", "");
+            //Console.WriteLine("UserId = " + this.UserId);
+            //Console.WriteLine("ProfileId = " + this.profileId);
+
+            if (this.UserId.Empty())
+            {
+                try {   var _userinfo = UserDetailsHelper.GetLoggedInUserInfo();
+                        this.UserId = _userinfo == null ? null : _userinfo.UserId;
+                }
+                catch { }
+                
+                
+            }
+        }
+        #endregion ~methods
+    }
+}
+
+
+using Ex.Common.Constant;
+using Ex.Common.Web;
+using Ex.Common.Extension;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace Ex.Common.Services.Inspectors.Headers
+{
+    
+    using System.Web;
+    using Header = Dictionary<string, string>;
+
+    /// <summary>
+    /// Public methods
+    /// </summary>
+    public partial class ExWebResponseHeader
+    {
+
+        private Header headers = new Header();
+        
+        public ExWebResponseHeader()
+        {
+            CreateHeaders();
+        }
+
+        /// <summary>
+        /// Public properties
+        /// </summary>
+        public Header Keys { get { return headers;  }  }
+
+
+        /// <summary>
+        /// Renders the headers into current context
+        /// </summary>
+        /// <param name="response"></param>
+        public static void Render(HttpResponseBase response = null)
+        {
+
+            if (HeaderRestricted() || WebIdentity.Ajax) return;
+                        
+            bool requestFlag = true;
+            
+            if (!(requestFlag = RequestManager.Get<bool>(ContextConstant.WebRequestHeaderScriptRender)))
+            {
+                RequestManager.Set<bool>(ContextConstant.WebRequestHeaderScriptRender, true);
+                
+                var keys = (new ExWebResponseHeader()).Keys;
+                var headers = "";               
+                foreach (var header in keys)
+                {
+                    try //suppress error if duplicate entires are made.
+                    {
+                        if (!header.Value.Empty())
+                        {
+                            headers = string.Format("{0}&{1}", headers, string.Format("{0}={1}", header.Key, header.Value));
+                        }
+                    }
+                    catch { }
+                }
+
+                if (!(headers = headers.Trim().TrimEx("&")).Empty() )
+                {
+                    JScriptManager.Put(HeaderConstant.ExCurrentContextScripts, headers.Encrypt().Decrypt().ToStringExt());
+                    JScriptManager.Put(HeaderConstant.ExCurrentContextScriptsEncrypted, headers.Encrypt());
+                }
+            }
+        }
+
+        public static void NoHeader()
+        {
+            RequestManager.Set<bool>(ContextConstant.WebRequestHeaderNoRender, true);
+        }
+
+    }
+
+
+    /// <summary>
+    /// Private Methods
+    /// </summary>
+    public partial class ExWebResponseHeader
+    {
+        private void CreateHeaders()
+        {
+            headers.Add(HeaderConstant.ExCurrentUserID, WebIdentity.CurrentIdentityUserName);
+
+            string _profileId = WebIdentity.QueryString.ProfileId;
+            headers.Add(HeaderConstant.ExProfileID, _profileId.Empty() ? WebIdentity.QueryString.PersonNumber : _profileId);
+        }
+
+        private static bool HeaderRestricted()
+        {
+            return RequestManager.Get<bool>(ContextConstant.WebRequestHeaderNoRender);
+        }
+
+    }
+}
+
+
+
+//Server Inspectors ---
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel.Configuration;
+using System.Text;
+
+namespace Ex.Common.Services.Inspectors.Server
+{
+    public class ServerBehaviorExtension : BehaviorExtensionElement
+    {
+        public ServerBehaviorExtension() { }
+
+        public override Type BehaviorType
+        {
+            get { return typeof(ServerEndpointBehaviorInspector); }
+        }
+
+        protected override object CreateBehavior()
+        {
+            return new ServerEndpointBehaviorInspector();
+        }
+    }
+}
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel.Description;
+using System.Text;
+
+namespace Ex.Common.Services.Inspectors.Server
+{
+    public class ServerEndpointBehaviorInspector : IEndpointBehavior
+    {
+        public void AddBindingParameters(ServiceEndpoint endpoint, System.ServiceModel.Channels.BindingParameterCollection bindingParameters)
+        {
+
+        }
+
+        public void ApplyClientBehavior(ServiceEndpoint endpoint, System.ServiceModel.Dispatcher.ClientRuntime clientRuntime)
+        {
+            
+        }
+
+        public void ApplyDispatchBehavior(ServiceEndpoint endpoint, System.ServiceModel.Dispatcher.EndpointDispatcher endpointDispatcher)
+        {
+            var channelDispatcher = endpointDispatcher.ChannelDispatcher;
+            if (channelDispatcher == null) return;
+
+            foreach(var dispatcher in channelDispatcher.Endpoints)
+            {
+                var inspector = new ServerMessageInspector();
+                dispatcher.DispatchRuntime.MessageInspectors.Add(inspector);
+            }
+        }
+
+        public void Validate(ServiceEndpoint endpoint)
+        {
+
+        }
+
+    }
+}
+
+
+using Ex.Common.Constant;
+using Ex.Common.Log;
+using Ex.Common.Services.Contexts;
+using Ex.Common.Services.Inspectors.Headers;
+using Ex.Common.Web;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel;
+using System.ServiceModel.Channels;
+using System.ServiceModel.Dispatcher;
+using System.Text;
+using System.Xml;
+using Ex.Common.Reports;
+
+namespace Ex.Common.Services.Inspectors.Server
+{
+    public class ServerMessageInspector : IDispatchMessageInspector
+    {
+        public object AfterReceiveRequest(ref Message request, IClientChannel channel, InstanceContext instanceContext)
+        {
+            if (request.Headers.Count > 0)
+            {
+                try
+                {
+                    ExServiceHeader customHeader = ExMessageHeaderInherit.ReadHeader(request);
+                    if (customHeader != null)
+                    {
+                        ExServiceContext.Put(customHeader);
+                        LoggerProcess.SetCorellation(customHeader.CorrelationID);
+                        ReportsProcess.ReportDept = customHeader.ReportDept;
+                        ReportsProcess.SetUserId(customHeader.UserId );
+                    }
+                }
+                catch
+                {
+ 
+                }
+            }
+
+            return null;
+        }
+
+        public void BeforeSendReply(ref Message reply, object correlationState)
+        {
+            //ExMessageHeaderInherit header = new ExMessageHeaderInherit(ExServiceContext.Get());
+            ExServiceContext.Remove();
+            LoggerProcess.Remove();
+
+            //reply.Headers.Add(header);
+        }
+
+    }
+}
+
+
+
+
+
+//Client Inspectors ---
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel.Configuration;
+using System.Text;
+
+namespace Ex.Common.Services.Inspectors.Client
+{
+    public class ClientBehaviorExtension : BehaviorExtensionElement
+    {
+        public ClientBehaviorExtension() { }
+
+        public override Type BehaviorType
+        {
+            get { return typeof(ClientEndpointBehaviorInspector); }
+        }
+
+        protected override object CreateBehavior()
+        {
+            return new ClientEndpointBehaviorInspector();
+        }
+    }
+}
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel.Description;
+using System.Text;
+
+namespace Ex.Common.Services.Inspectors.Client
+{
+    public class ClientEndpointBehaviorInspector : IEndpointBehavior
+    {
+        public void AddBindingParameters(ServiceEndpoint endpoint, System.ServiceModel.Channels.BindingParameterCollection bindingParameters)
+        {
+
+        }
+
+        public void ApplyClientBehavior(ServiceEndpoint endpoint, System.ServiceModel.Dispatcher.ClientRuntime clientRuntime)
+        {
+            clientRuntime.MessageInspectors.Add(new ClientMessageInspector());
+        }
+
+        public void ApplyDispatchBehavior(ServiceEndpoint endpoint, System.ServiceModel.Dispatcher.EndpointDispatcher endpointDispatcher)
+        {
+
+        }
+
+        public void Validate(ServiceEndpoint endpoint)
+        {
+
+        }        
+
+    }
+}
+
+using Ex.Common.Constant;
+using Ex.Common.Log;
+using Ex.Common.Services.Inspectors.Headers;
+using Ex.Common.Web;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.ServiceModel;
+using System.ServiceModel.Channels;
+using System.ServiceModel.Dispatcher;
+using System.Text;
+using Ex.Common.Reports;
+
+namespace Ex.Common.Services.Inspectors.Client
+{
+    public class ClientMessageInspector : IClientMessageInspector
+    {
+
+        public void AfterReceiveReply(ref Message reply, object correlationState)
+        {
+
+        }
+
+        public object BeforeSendRequest(ref Message request, IClientChannel channel)
+        {
+            //if (WebIdentity.IsPOST && !WebIdentity.GETAction)
+            //{
+                ExMessageHeaderInherit header = new ExMessageHeaderInherit(new ExServiceHeader() {  CorrelationID = LoggerProcess.GetCorellation() });
+
+                request.Headers.Add(header);
+            //}
+
+            return null;
+        }
+    }
+}
+
+
+//At Client Side - How to Utilize ---
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Http;
+
+using System.ServiceModel;
+using System.ServiceModel.Description;
+using Ex.Common.Services.Inspectors.Client;
+using Ex.Common.Extension;
+using Ex.Common.Constant;
+using Ex.Common.Web;
+using Ex.Common.Services.Interceptors;
+using Ninject;
+
+
+namespace Ex.WebAPI.BaseClasses
+{    
+    public abstract class ApiServiceInspectorController<T> : ApiBaseController where T: class
+    {
+        //[Inject]
+        protected T ServiceProxy { get; set; }
+
+        public ApiServiceInspectorController(T service)
+        {
+            ServiceProxy = Inject(service);
+        }
+
+        protected static IService Service<IService, TService>()
+            where TService : class, new()
+            where IService : class
+        {
+            try
+            {
+                return Inject(new TService() as IService);
+            }
+            catch { }
+
+            return null;
+        }
+        
+        private T Inject(T service)
+        {           
+            return Inject<T>(service);
+        }
+
+        private static TService Inject<TService>(TService service)
+        {
+            try
+            {    ClientInterceptor.InduceInspectors<TService>(service);
+            }
+            catch { }
+
+            return service;
+        }
+    }
+}
+
+... public class AnyController : ApiServiceInspectorController<IAnyService>
+... ServiceProxy.AnymethodOfTheServiceAtApiServiceInspectorController();
+
+
+OROROROR
+
+
+...ClientInterceptor.InduceInspectors<ServiceClientType>(serviceProxy);
+...ExServiceContext.Put(new ExServiceHeader() { UserId = "<<ANY USER ID>>" });
+
+
+

@@ -1,0 +1,162 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Configuration;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Web;
+using Ex.Common.Extension;
+
+namespace Ex.Common.Encryption
+{
+    public static class CryptoUtil
+    {
+        public static Dictionary<string, string> Decrypt(string message)
+        {
+            // If no encrypted string present, return empty collection
+            if (string.IsNullOrEmpty(message))
+            {
+                return ConvertToDictionary(string.Empty);
+            }
+
+            // Get key key
+            string key = ConfigurationManager.AppSettings["EncryptionSalt"];
+            if (string.IsNullOrEmpty(key))
+            {
+                throw new ApplicationException(
+                    "Encryption Salt not configurated.  Please configure in web.config and try again.");
+            }
+
+            return ConvertToDictionary(DecryptMessage(message, key));
+        }
+
+        public static string Encrypt(string message)
+        {
+            // If no message present, return
+            if (string.IsNullOrEmpty(message))
+            {
+                return string.Empty;
+            }
+
+            // Get key key
+            string salt = ConfigurationManager.AppSettings["EncryptionSalt"];
+            if (string.IsNullOrEmpty(salt))
+            {
+                throw new ApplicationException(
+                    "Encryption Salt not configurated.  Please configure in web.config and try again.");
+            }
+
+            return EncryptMessage(message, salt);
+        }
+
+        public static NameValueCollection Collection(string message)
+        {
+            NameValueCollection nCollection = null;
+
+            if (!message.Empty())
+            {
+                nCollection = new NameValueCollection();
+                foreach (var decrypt in Decrypt(message)) nCollection.Add(decrypt.Key, decrypt.Value);
+            }
+            
+            return nCollection;
+        }
+
+        public static string GetQueryStringValue(Dictionary<string, string> collection, string key, string defaultValue = "")
+        {
+            // If collection populated, get the value else read querystring
+            if (collection.Any())
+            {
+                return collection.ContainsKey(key) ? collection[key] : defaultValue;
+            }
+            return HttpContext.Current.Request.QueryString[key] ?? defaultValue;
+        }
+
+        public static string DecryptConnectionString(string configKeyForValue, string configKeyForSalt)
+        {
+            string message = ConfigurationManager.AppSettings[configKeyForValue];
+            string key = ConfigurationManager.AppSettings[configKeyForSalt];
+
+            // If no encrypted string present, return empty collection
+            if (string.IsNullOrEmpty(message) || string.IsNullOrEmpty(key))
+            {
+                throw new ApplicationException(
+                    "Either connection string or key key not configurated.  Please configure in config file and try again.");
+            }
+
+            return DecryptMessage(message, key);
+        }
+
+        #region Private Functions
+
+        private static Dictionary<string, string> ConvertToDictionary(string decryptedString)
+        {
+            Dictionary<string, string> querystrings = new Dictionary<string, string>();
+            if (!string.IsNullOrEmpty(decryptedString))
+            {
+                decryptedString = decryptedString.Replace("?", "");
+                string[] pairs = decryptedString.Split("&".ToCharArray());
+                foreach (string[] kv in pairs.Select(pair => pair.Split("=".ToCharArray())).Where(kv => kv.Any()))
+                {
+                    querystrings.Add(kv[0], kv.Length == 2 ? kv[1] : string.Empty);
+                }
+            }
+            return querystrings;
+        }
+
+        private static string DecryptMessage(string message, string key)
+        {
+            string decryptedString;
+            DESCryptoServiceProvider desProvider = new DESCryptoServiceProvider
+            {
+                Mode = CipherMode.ECB,
+                Padding = PaddingMode.PKCS7,
+                Key = Encoding.ASCII.GetBytes(key)
+            };
+            using (MemoryStream stream = new MemoryStream(Convert.FromBase64String(message)))
+            {
+                using (CryptoStream cs = new CryptoStream(stream, desProvider.CreateDecryptor(), CryptoStreamMode.Read))
+                {
+                    using (StreamReader sr = new StreamReader(cs, Encoding.ASCII))
+                    {
+                        decryptedString = sr.ReadToEnd();
+                    }
+                }
+            }
+
+            return decryptedString;
+        }
+
+        private static string EncryptMessage(string message, string key)
+        {
+            string encryptedString;
+            DESCryptoServiceProvider desProvider = new DESCryptoServiceProvider
+            {
+                Mode = CipherMode.ECB,
+                Padding = PaddingMode.PKCS7,
+                Key = Encoding.ASCII.GetBytes(key)
+            };
+            using (MemoryStream stream = new MemoryStream())
+            {
+                using (CryptoStream cs = new CryptoStream(stream, desProvider.CreateEncryptor(), CryptoStreamMode.Write)
+                    )
+                {
+                    using (StreamWriter writer = new StreamWriter(cs, Encoding.ASCII))
+                    {
+                        writer.Write(message);
+                        writer.Flush();
+                        cs.FlushFinalBlock();
+                        writer.Flush();
+                        encryptedString = Convert.ToBase64String(stream.GetBuffer(), 0, (int) stream.Length);
+                    }
+                }
+            }
+            return encryptedString;
+        }
+
+        #endregion
+
+    }
+}

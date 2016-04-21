@@ -601,5 +601,94 @@ OROROROR
 ...ClientInterceptor.InduceInspectors<ServiceClientType>(serviceProxy);
 ...ExServiceContext.Put(new ExServiceHeader() { UserId = "<<ANY USER ID>>" });
 
+-- SERVER SIDE CONFIG --
+
+	<system.serviceModel>
+    <client>
+      <endpoint address="http://<<WebApplicationName>>/ExServiceNamespace/ServiceName.svc" binding="basicHttpBinding" bindingConfiguration="BasicHttpBinding_IExAnyService" contract="Ex.Service.ExTransactionServiceManager.IExTransactionService" name="BasicHttpBinding_IExAnyService"/>
+    </client>
+
+	
+	<bindings>
+      <basicHttpBinding>
+		 <binding name="CustomBinding" receiveTimeout="01:20:00" sendTimeout="01:20:00" closeTimeout="01:20:00" maxReceivedMessageSize="2147483647" maxBufferPoolSize="2147483647"
+            maxBufferSize="2147483647">
+          <readerQuotas maxDepth="2000000" maxStringContentLength="2147483647" maxArrayLength="2147483647" maxBytesPerRead="2147483647"
+            maxNameTableCharCount="2147483647"/>
+          <security mode="None"/>
+        </binding>
+	<service name="Ex.AnyServiceName">
+        <endpoint address="" binding="basicHttpBinding" bindingConfiguration="CustomBinding" contract="Ex.IAnyServiceName" behaviorConfiguration="ServerBehaviorWithInspector" />
+     </service>
+    
+    </services>
+    <behaviors>
+
+     <endpointBehaviors>
+        <behavior name="ServerBehaviorWithInspector" >
+          <ServerInspector/>
+        </behavior>
+       <behavior name="OtherServerBehaviorWithInspector">
+         <ServerInspector/>
+       </behavior>
+
+     </endpointBehaviors>
+
+      <serviceBehaviors>
+        <behavior>
+          <!-- To avoid disclosing metadata information, set the values below to false before deployment -->
+          <serviceMetadata httpGetEnabled="true" httpsGetEnabled="true"/>
+          <!-- To receive exception details in faults for debugging purposes, set the value below to true.  Set to false before deployment to avoid disclosing exception information -->
+          <serviceDebug includeExceptionDetailInFaults="true"/>
+        </behavior>
+      </serviceBehaviors>
+    </behaviors>
+
+    <extensions>
+      <behaviorExtensions>
+        <add name="ServerInspector" type="Ex.Common.Services.Inspectors.Server.ServerBehaviorExtension, Ex.Common"/>
+      </behaviorExtensions>
+    </extensions>
+	
+	<protocolMapping>
+      <add binding="basicHttpsBinding" scheme="https"/>
+      <add binding="basicHttpBinding" scheme="http"/>
+    </protocolMapping>
+	
+	<serviceHostingEnvironment aspNetCompatibilityEnabled="true" multipleSiteBindingsEnabled="true" minFreeMemoryPercentageToActivateService="0"/>
+</system.serviceModel>	
+	
 
 
+-- CLIENT SIDE CONFIG --
+	<system.serviceModel>
+    <bindings>
+      <basicHttpBinding>
+        <binding name="BasicHttpBinding_IAnyService" maxBufferPoolSize="2147483647" maxBufferSize="2147483647" maxReceivedMessageSize="2147483647">
+          <readerQuotas maxDepth="32" maxStringContentLength="2147483647" maxArrayLength="2147483647"/>
+        </binding>
+        </binding>
+      </basicHttpBinding>
+    </bindings>
+	<client>
+	<endpoint address="http://localhost:0000/AnyService.svc" binding="basicHttpBinding" bindingConfiguration="BasicHttpBinding_IAnyService" contract="Ex.Service.NotesManager.IAnyService" behaviorConfiguration="ClientBehaviorWithInspector" name="BasicHttpBinding_IAnyService"/>
+	</client>
+	<behaviors>
+      <endpointBehaviors>
+        
+		<behavior name="ClientBehaviorWithInspector">
+          <ClientInspector/>
+        </behavior>
+		
+        <behavior name="OtherClientBehaviorWithInspector">
+          <ClientInspector/>
+        </behavior>
+		
+      </endpointBehaviors>
+    </behaviors>
+    <extensions>
+      <behaviorExtensions>
+        <add name="ClientInspector" type="Ex.Common.Services.Inspectors.Client.ClientBehaviorExtension, Ex.Common, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"/>
+      </behaviorExtensions>
+    </extensions>
+  </system.serviceModel>

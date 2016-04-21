@@ -1,0 +1,1101 @@
+////Cache Managers ////
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Ex.Common.Web.Bases
+{
+    public abstract class _BaseManager<T> where T: CacheValue,  new() 
+    {
+        internal static T Create(object value)
+        {
+            return new T() { Value = value };
+        }
+
+        internal static object Get(object cache)
+        {
+            return ((T)cache).Value;
+        }
+
+        internal static bool LongRunning(object cache)
+        {
+            //5 seconds = 5 * 1000 (1000 ticks = 1 second)
+            return ((DateTime.Now - ((T)cache).Start).Milliseconds > 5000);
+        }
+    }
+}
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Ex.Common.Web.Bases
+{
+    public class CacheValue
+    {
+        internal DateTime Start { get; set; }
+        internal object Value { get; set; }
+
+        public CacheValue()
+        {
+            Start = DateTime.Now;
+        }
+    }
+}
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Web;
+
+namespace Ex.Common.Web
+{
+    public static class AppManager
+    {
+        static AppManager() { }
+
+        public static void Set<T>(string name, T value)
+        {
+            try  //No Web Senario.
+            {
+                if (value != null)
+                    HttpContext.Current.Application[name] = value;
+            }
+            catch { }
+        }
+
+        public static T Get<T>(string name)
+        {
+            try  //No Web Senario.
+            {
+                if (HttpContext.Current.Application[name] != null)
+                {
+                    return (T)HttpContext.Current.Application[name];
+                }
+            }
+            catch { }
+
+            return default(T);
+        }
+
+        public static void Remove(string name)
+        {
+            try  //No Web Senario.
+            {
+                if (HttpContext.Current.Application[name] != null)
+                {
+                    HttpContext.Current.Application.Remove(name);
+                }
+            }
+            catch { }
+        }
+
+        public static void Clear()
+        {
+            try  //No Web Senario.
+            {
+                HttpContext.Current.Application.Clear();
+            }
+            catch { }
+        }
+
+    }
+}
+
+
+
+
+using Ex.Common.Configuration;
+using Ex.Common.Constant;
+using Ex.Common.Web.Bases;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Web;
+using System.Web.Caching;
+
+namespace Ex.Common.Web
+{
+    public sealed class CacheManager : _BaseManager<CacheValue>
+    {
+        static CacheManager() { }
+        
+        public static void Set<T>(string name, T value)
+        {
+            if (value != null)
+                HttpRuntime.Cache.Insert(name, Create(value), null, DateTime.Now.AddMinutes( Configurations.Get<int>(ConfigConstant.AuditCacheLapseTimeInMunites, 
+                                                                                                             Defaults.AuditCacheLapseTimeInMinutes) ), Cache.NoSlidingExpiration);
+        }
+
+        public static T Get<T>(string name)
+        {
+            if (Exists(name))
+            {
+                return (T) Get((HttpRuntime.Cache[name]));
+            }
+
+            return default(T);
+        }
+
+        public static void Remove(string name)
+        {
+            if (Exists(name))
+            {
+                HttpRuntime.Cache.Remove(name);
+            }
+        }
+
+        public static void RemoveIfLongRunning(string name)
+        {
+            if (Exists(name))
+            {
+                if (LongRunning(HttpRuntime.Cache[name]))
+                    Remove(name);
+            }            
+        }
+
+        public static bool IsAvailable(string name)
+        {
+            return Exists(name);
+        }
+
+        
+        //Private methods
+        //========================================
+
+        private static bool Exists(string key)
+        {
+            try
+            {
+                return HttpRuntime.Cache[key] != null;
+            }
+            catch 
+            {
+                
+            }
+
+            return false;
+        }
+
+    }
+}
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+using System.Threading;
+
+using Ex.Common.Extension;
+using System.Runtime.Remoting.Messaging;
+using Ex.Common.Web.Bases;
+
+namespace Ex.Common.Web
+{
+    public sealed class CallContextManager : _BaseManager<CacheValue>
+    {
+        static CallContextManager() { }
+
+        public static T Set<T>(string name, T value)
+        {
+            try
+            {
+                if (value != null)
+                    CallContext.SetData(GetSlot(name, true), Create(value));
+            }
+            catch { }
+
+            return value;
+        }
+
+        public static T Get<T>(string name)
+        {
+            try
+            {
+                if (Exists(name))
+                {
+                    return (T)Get(CallContext.GetData(name));
+                }
+            }
+            catch { }
+
+            return default(T);
+        }
+
+        public static void Remove(string name)
+        {
+            try
+            {
+                if (Exists(name))
+                {
+                    CallContext.FreeNamedDataSlot(name);
+                }
+            }
+            catch { }
+        }
+
+        public static void RemoveIfLongRunning(string name)
+        {
+            try
+            {
+                if (Exists(name))
+                {
+                    if (LongRunning(CallContext.GetData(name))) Remove(name);
+                }
+            }
+            catch { }
+        }
+
+        private static string GetSlot(string name, bool create = false)
+        {
+            if (CallContext.GetData(name) == null && create)
+                Remove(name);
+
+            return name;
+        }
+
+        private static bool Exists(string name)
+        {
+            return CallContext.GetData(name) != null;
+        }
+    }
+}
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+//using System.Web;
+
+using Ex.Common.Extension;
+//using System.Net.Http;
+//using System.Net.Http.Headers;
+using System.Web;
+
+namespace Ex.Common.Web
+{
+    public static class CookieManager 
+    {
+        static CookieManager() { }
+
+        public static string Set(string name, string value)
+        {
+            Remove(name);
+
+            if (HttpContext.Current != null)
+                HttpContext.Current.Response.Cookies.Add(Create(name, value));
+
+            return value;
+        }
+
+        public static string Get(string name)
+        {
+            if (Exists(name))
+                return HttpContext.Current.Request.Cookies[name].Value;
+
+            return "";
+        }
+
+        public static void Remove(string name)
+        {
+            if (Exists(name))
+            {
+                HttpContext.Current.Request.Cookies.Get(name).Values.Clear();
+            }
+        }
+
+        public static void RemoveIfLongRunning(string name)
+        {
+
+        }
+
+        public static bool Exists(string name)
+        {
+            if(HttpContext.Current == null) 
+                return false;
+
+            return HttpContext.Current.Request.Cookies.AllKeys.Contains(name);
+        }
+
+        private static HttpCookie Create(string name, string value)
+        {
+            return new HttpCookie(name, value);
+        }
+
+
+        //#region ^BEGIN: Web API related cookie handling
+
+        //public static bool Set(this HttpRequestMessage request, string name, string value)
+        //{
+
+        //    CookieHeaderValue cookie = Search(request, name);
+        //    return cookie == null ? Create(request, name, value) : Update(request, cookie, value);
+        //}
+
+        //public static string Get(this HttpRequestMessage request, string name)
+        //{
+        //    CookieHeaderValue cookie = Search(request, name);
+        //    if (cookie != null)
+        //    {
+        //        return cookie[name].Value;
+        //    }
+
+        //    return null;
+        //}
+
+        ////Private Methods...
+        //private static CookieHeaderValue Search(HttpRequestMessage request, string name)
+        //{
+        //    CookieHeaderValue cookie = request.Headers.GetCookies(name).FirstOrDefault();
+        //    return cookie;
+        //}
+
+        //private static bool Create(HttpRequestMessage request, string name, string value)
+        //{
+        //    var resp = new HttpResponseMessage(); 
+                       
+        //    var cookie = new CookieHeaderValue(name, value);
+        //    cookie.Expires = DateTimeOffset.Now.AddDays(30);
+        //    cookie.Domain = request.RequestUri.Host;
+        //    cookie.Path = "/";
+
+        //    resp.Headers.AddCookies(new CookieHeaderValue[] { cookie });
+
+        //    return true;
+        //}
+
+        //private static bool Update(HttpRequestMessage request, CookieHeaderValue cookie, string value)
+        //{
+        //    return true;
+        //}
+        //#endregion ~END: Web API related cookie handling
+       
+    }
+}
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Web;
+
+using Ex.Common.Extension;
+using Ex.Common.Constant;
+
+namespace Ex.Common.Web
+{
+    using Dict = Dictionary<string, string>;
+    
+    public static class HeaderManager
+    {
+        public static void Store(string name)
+        {
+            string value = Read(name);
+            if (!value.Empty()) ItemManager.Set<string>(name, value);
+        } 
+ 
+        public static string Read(string name)
+        {
+            string header = null;
+
+            var headers = DecryptHeader();
+
+            try  //No Web Senario.
+            {
+                if (!headers.Null() && headers.Keys.Contains(name))
+                    header = headers[name];
+
+                if (header.Empty() && HttpContext.Current.Request != null)
+                {
+                    header = HttpContext.Current.Request.Headers[name];
+                    if (header.Empty())
+                    {
+                        header = HttpContext.Current.Request.QueryString[name];
+                    }
+                }
+                if (header.Empty() && HttpContext.Current.Request.Form != null)
+                    header = HttpContext.Current.Request.Form[name];                
+            }
+            catch { }
+
+            return  header.Empty() ? null : header;
+        }
+
+        public static string Get(string name)
+        {
+            return ItemManager.Get<string>(name);
+        }
+
+        /// <summary>
+        /// Decrypt the in coming headers.
+        /// </summary>
+        /// <returns></returns>
+        private static Dictionary<string, string> DecryptHeader()
+        {
+            Dict headers = RequestManager.Get<Dict>(RequestConstant.WebRequestEncryption);
+            
+            try  //No Web Senario.
+            {
+                if (headers.Null())
+                {
+                    string encsHeader = null;
+                    if (HttpContext.Current.Request != null)
+                        encsHeader = HttpContext.Current.Request.Headers[HeaderConstant.ExCurrentContextScriptsEncrypted];
+                    if (encsHeader.Empty() && HttpContext.Current.Request.Form != null)
+                        encsHeader = HttpContext.Current.Request.Form[HeaderConstant.ExCurrentContextScriptsEncrypted];
+
+                    if (!encsHeader.Empty())
+                    {
+                        headers = encsHeader.Decrypt();
+                        RequestManager.Set<Dict>(RequestConstant.WebRequestEncryption, headers);   //Put it into a Thread Slot to refer any time later.
+                    }
+                    
+                }
+            }
+            catch { }
+
+            return headers;
+        }
+    }
+}
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+using System.Threading;
+
+using Ex.Common.Extension;
+using Ex.Common.Web.Bases;
+
+namespace Ex.Common.Web
+{
+    public sealed class ItemManager : _BaseManager<CacheValue>
+    {
+        static ItemManager() { }
+       
+        public static T Set<T>(string name, T value)
+        {
+            try  
+            {
+                if (value != null)               
+                   Thread.SetData(GetSlot(name, true), Create(value));                
+            }
+            catch { }
+
+            return value;
+        }
+
+        public static T Get<T>(string name)
+        {
+            try 
+            {
+                if (Exists(name))
+                {
+                    return (T)Get(Thread.GetData(GetSlot(name)));
+                }
+            }
+            catch { }
+
+            return default(T);
+        }
+
+        public static void Remove(string name)
+        {
+            try  
+            {
+                if (Exists(name))
+                {
+                    Thread.FreeNamedDataSlot(name);
+                }
+            }
+            catch { }
+        }
+
+        public static void RemoveIfLongRunning(string name)
+        {
+            try
+            {
+                if (Exists(name) )
+                {
+                    if ( LongRunning( Thread.GetData( GetSlot(name) ) ) )
+                        Remove(name);                
+                }
+            }catch{}
+        }
+
+        private static LocalDataStoreSlot GetSlot(string name, bool create = false)
+        {
+            if (Thread.GetNamedDataSlot(name) == null && create)
+                Thread.AllocateNamedDataSlot(name);
+
+            return Thread.GetNamedDataSlot(name);
+        }
+
+        private static bool Exists(string name)
+        {
+            return Thread.GetNamedDataSlot(name) != null;
+        }
+    }
+}
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Web;
+using Ex.Common.Extension;
+
+namespace Ex.Common.Web
+{
+    public class JScriptManager
+    {
+        public static string Put(string name, string value)
+        {
+            if (!Exists(name, value))
+            {
+                HttpContext.Current.Response.Write(Create(name, value));
+            }
+
+            return value;
+        }
+
+        
+        
+        private static bool Exists(string name, string value)
+        {
+            bool flag = true;
+            if (RequestManager.Get<string>(name).Empty())
+            { RequestManager.Set<string>(name, value); flag = false; }
+
+            return flag;
+        }
+
+        private static string Create(string name, string value)
+        {
+            string script = string.Format("<script language='Javascript' type='text/javascript'>{0}var {1} = '{2}';{0}</script>{0}", 
+                                          Environment.NewLine, name, value);
+            return script;
+        }
+    }
+}
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+using System.Threading;
+
+using Ex.Common.Extension;
+using Ex.Common.Web.Bases;
+
+namespace Ex.Common.Web
+{
+    public sealed class RequestManager : _BaseManager<CacheValue>
+    {
+        static RequestManager() { }
+       
+        public static T Set<T>(string name, T value)
+        {
+            try  
+            {
+                if (value != null)
+                    Create(name, Create(value));
+            }
+            catch { }
+
+            return value;
+        }
+
+        public static T Get<T>(string name)
+        {
+            try 
+            {
+                if (Exists(name))
+                {
+                    return (T)Get(HttpContext.Current.Items[name]);
+                }
+            }
+            catch { }
+
+            return default(T);
+        }
+
+        public static void Remove(string name)
+        {
+            try  
+            {
+                if (Exists(name))
+                {
+                    HttpContext.Current.Items.Remove(name);
+                }
+            }
+            catch { }
+        }
+
+        public static void RemoveIfLongRunning(string name)
+        {
+            try
+            {
+                if (Exists(name))
+                {
+                    if (LongRunning( HttpContext.Current.Items[name] )) Remove(name);
+                }
+            }
+            catch { }
+        }
+
+        private static void Create<T>(string name, T value)
+        {
+            Remove(name);
+            HttpContext.Current.Items[name] = value;
+        }
+
+        private static bool Exists(string name)
+        {
+            return HttpContext.Current.Items[name] != null;
+        }
+    }
+}
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+using Ex.Common.Extension;
+
+namespace Ex.Common.Web
+{
+    public static class SessionManager
+    {
+        static SessionManager() { }
+        
+        public static void Set<T>(string name, T value)
+        {
+            try  //No Web Senario.
+            {
+                if (value != null)
+                    HttpContext.Current.Session[name] = value;
+            }
+            catch { }
+        }
+
+        public static T Get<T>(string name)
+        {
+            try  //No Web Senario.
+            {
+                if (HttpContext.Current.Session[name] != null)
+                {
+                    return (T)HttpContext.Current.Session[name];
+                }
+            }
+            catch { }
+
+            return default(T);
+        }
+        
+        public static void Remove(string name)
+        {
+            try  //No Web Senario.
+            {
+                if (HttpContext.Current.Session[name] != null)
+                {
+                    HttpContext.Current.Session.Remove(name);
+                }
+            }
+            catch { }
+        }
+
+        public static void RemoveIfLongRunning(string name)
+        {
+
+        }
+
+        public static void Clear()
+        {
+            try  //No Web Senario.
+            {
+                HttpContext.Current.Session.Clear();
+            }
+            catch { }
+        }
+
+
+        public static string RequestID()
+        {
+            string id = string.Empty;
+            try
+            {
+                id = HttpContext.Current.Request.RequestContext.HttpContext.Timestamp.ToSpecificTimeZone().ToString();
+            }
+            catch { }
+
+            return id;
+        }
+    }
+}
+
+
+using Ex.Common.Constant;
+using Ex.Common.Extension;
+using Ex.Common.Web.QueryStrings;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Web;
+
+namespace Ex.Common.Web
+{
+    public static partial class WebIdentity
+    {
+        static WebIdentity() { }
+        
+        private static bool isWeb()
+        {
+            return (HttpRuntime.AppDomainAppId != null);
+        }
+
+
+        public static string SiteName
+        {
+            get
+            {
+
+                return "WEB";
+            }
+        }
+
+        public static string CurrentUserName
+        {
+            get
+            {
+                string name = string.Empty;
+
+                try  //To be able to handle if request is not exactly a WEB User.
+                {                    
+                    name = SessionManager.Get<string>(SessionConstant.UserID);
+                    
+                    if (HttpContext.Current.User != null && string.IsNullOrWhiteSpace(name))                    
+                        name = HttpContext.Current.User.Identity.Name.RemoveDomain();                    
+                }
+                catch { }
+
+                return name.Empty() ? (isWeb() ? Defaults.SystemUser : Defaults.SystamaticTransactionUser) : name;
+            }
+        }
+
+        public static string CurrentIdentityUserName
+        {
+            get
+            {
+                string name = string.Empty;
+                
+                try
+                {
+                    string session_user = SessionManager.Get<string>(SessionConstant.UserID);
+                    
+                    if (HttpContext.Current.Request.ServerVariables["HTTP_UID"] != null)
+                        name = HttpContext.Current.Request.ServerVariables["HTTP_UID"].ToString();
+                    else
+                        name = HttpContext.Current.User.Identity.Name.RemoveDomain();
+
+                    if ((name.Length > AppConstant.MaxNBKIDLength || name.Contains("_")) && !session_user.Empty())
+                        name = session_user;
+                }
+                catch{}
+
+                return name.Empty() ? ( isWeb() ? Defaults.SystemUser : Defaults.SystamaticTransactionUser ) : name;
+            }
+        }
+
+        public static string CurrentExLoggedUserName
+        {
+            get
+            {
+                string name = string.Empty;
+                
+                try
+                {
+                    name =  HeaderManager.Read(HeaderConstant.ExCurrentUserID) ??  HeaderManager.Get(HeaderConstant.ExCurrentUserID);                    
+                }
+                catch { }
+
+                return name.Empty() ? ( isWeb() ? Defaults.SystemUser : Defaults.SystamaticTransactionUser ) : name;
+            }
+        }
+
+        public static string CurrentExProfileId
+        {
+            get
+            {
+                string name = null;
+
+                try
+                {
+                    name = HeaderManager.Read(HeaderConstant.ExProfileID) ?? HeaderManager.Get(HeaderConstant.ExProfileID);
+                }
+                catch { }
+
+                return name.ToEmpty();
+            }
+        }
+
+        public static string SessionID
+        {
+            get
+            {
+                string id = "NOT WEB";
+                try
+                {
+                    id = HttpContext.Current.Request.RequestContext.HttpContext.Session.SessionID.ToString();
+                }
+                catch { }
+
+                return id;
+            }
+        }
+
+        public static string URL
+        {
+            get
+            {
+                string url = "";
+
+                try
+                {
+                    url = HttpContext.Current.Request.ServerVariables["URL"].Trim();
+                    url = url.TrimEnd(new char[] { '/' });
+                }
+                catch { }
+
+                return url;
+
+            }
+        }
+
+        public static string SOAP
+        {
+            get
+            {
+                string url = "";
+
+                try
+                {
+                    url = HttpContext.Current.Request.ServerVariables["HTTP_SOAPACTION"];
+                }
+                catch { }
+
+                return url;
+
+            }
+        }
+
+        public static bool IsPOST
+        {
+            get
+            {
+                try
+                {
+                    return HttpContext.Current.Request.HttpMethod.ToUpper().Equals("POST");
+                }
+                catch { return false; }
+            }
+        }
+
+        public static bool GETAction
+        {
+            get
+            {
+                try
+                {
+                    //http://tempuri.org/IUserService/GetUserByID
+
+                    string url = URL;
+                    if (!url.Empty())
+                    {
+                        return url.SplitEx('/').Any(u => u.ToUpper().StartsWith("GET"));
+                        
+                       //return url.Substring(url.LastIndexOf("/") + 1).ToUpper().StartsWith("GET");
+                    }
+                    throw new Exception();
+                }
+                catch { return true; }
+
+
+            }
+        }
+
+        public static DateTime RequestTime
+        {
+            get
+            {
+                try
+                {
+                    return HttpContext.Current.Timestamp.ToSpecificTimeZone();
+                }
+                catch 
+                {
+                    return DateTime.Now;
+                }
+            }
+        }
+
+        public static string Browser
+        {
+            get
+            {
+                try
+                {
+                    return HttpContext.Current.Request.UserAgent;
+                }
+                catch
+                {
+                    return AppConstant.Source;
+                }
+            }
+
+        }
+
+        public static string Server
+        {
+            get
+            {
+                try
+                {
+                    return HttpContext.Current.Request.ServerVariables["SERVER_NAME"];
+                }
+                catch
+                {
+                    return "Unknown Server";
+                }
+            }
+        }
+
+        public static string IP
+        {
+            get
+            {
+                try
+                {
+                    return HttpContext.Current.Request.ServerVariables["LOCAL_ADDR"];
+                }
+                catch
+                {
+                    return "Unknown IP";
+                }
+            }
+        }
+
+        public static string URI
+        {
+            get
+            {
+                try
+                {
+                    return HttpContext.Current.Request.Url.AbsoluteUri.Replace(HttpContext.Current.Request.Url.PathAndQuery, "/");
+                }
+                catch
+                {
+                    return "";
+                }
+            }
+        }
+
+        public static RequestQueryString QueryString
+        {
+            get
+            {
+                RequestQueryString qStr = RequestManager.Get<RequestQueryString>(RequestConstant.WebRequestQueryString);
+                if (qStr == null)
+                    qStr = RequestManager.Set<RequestQueryString>(RequestConstant.WebRequestQueryString, new RequestQueryString());
+
+                //RequestQueryString qStr = new RequestQueryString();
+
+                return qStr;
+            }
+        }
+
+        public static bool Ajax
+        {
+            get
+            {
+                var headers = HttpContext.Current.Request.Headers;
+
+                return (headers != null && !headers["X-Requested-With"].Null() && headers["X-Requested-With"].Equals("XMLHttpRequest"));                
+            }
+        }
+
+    }
+
+    public static partial class WebIdentity
+    {
+        public static string Request(string uri)
+        {
+            string responseFromServer = "";
+            
+            WebRequest request = WebRequest.Create(uri);
+            request.Credentials = CredentialCache.DefaultCredentials;
+
+            using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+            {
+                using (Stream dataStream = response.GetResponseStream())
+                {
+                    using (StreamReader reader = new StreamReader(dataStream))
+                    {
+                        responseFromServer = reader.ReadToEnd();
+                    }
+                }
+            }
+            
+            return responseFromServer;
+        }
+    }
+}
+
+
+
+
+
+

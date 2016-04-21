@@ -1,0 +1,410 @@
+// PROVIDER MODEL //
+
+using Ex.Common.Constant;
+using Ex.Common.Extension;
+using Ex.Common.Web.QueryStrings;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Web;
+
+namespace Ex.Common.Web.UserDetails
+{
+    internal interface IUserDetailsStoreProvider
+    {
+        void SetDetails<T>(string key, T value);
+        T GetDetails<T>(string key);
+    }
+}
+
+
+
+
+using Ex.Common.Constant;
+using Ex.Common.Extension;
+using Ex.Common.Web.QueryStrings;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Runtime.Remoting;
+using System.Text;
+using System.Web;
+
+namespace Ex.Common.Web.UserDetails
+{
+    internal class UserDetailsDBStoreProvider : IUserDetailsStoreProvider
+    {
+        public void SetDetails<T>(string key, T value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public T GetDetails<T>(string key)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
+
+
+
+using Ex.Common.Constant;
+using Ex.Common.Extension;
+using Ex.Common.Web.QueryStrings;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Text;
+using System.Web;
+
+namespace Ex.Common.Web.UserDetails
+{
+    public static class UserDetailsHelper
+    {
+        private static volatile IUserDetailsStoreProvider _userManagerInstance;
+        private static readonly object syncRoot = new object();
+
+        private static IUserDetailsStoreProvider Instance
+        {
+            get
+            {
+                if (_userManagerInstance == null)
+                {
+                    lock (syncRoot)
+                    {
+                        if (_userManagerInstance == null)
+                        {
+                            try
+                            {
+                                _userManagerInstance =
+                                (IUserDetailsStoreProvider)
+                                    Assembly.GetAssembly(typeof(IUserDetailsStoreProvider))
+                                        .CreateInstance(
+                                            "Ex.Common.Web.UserDetails." +
+                                            Configuration.Configurations.Get("UserStore"), false,
+                                            BindingFlags.CreateInstance, null, null, null, null);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new ApplicationException("UserDetailsStoreProvider confiugration is missing/invalid. " + ex.Message);
+                            }
+                            
+                        }
+                    }
+                }
+
+                return _userManagerInstance;
+            }
+        }
+
+        private static string UserInfoKey = "UserInfo"; // + HttpContext.Current.User.Identity.Name.RemoveDomain());
+        public static void SetLoggedInUserInfo(UserInfo userInfo)
+        {
+            var instanceVariable = Instance;
+            try
+            {
+                instanceVariable.SetDetails<UserInfo>(UserInfoKey, userInfo);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("Error occured in setting userdetails in storeprovider. " + ex.Message);
+            }
+        }
+
+        public static UserInfo GetLoggedInUserInfo()
+        {
+            var instanceVariable = Instance;
+            try
+            {
+                return instanceVariable.GetDetails<UserInfo>(UserInfoKey);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("Error occured while getting userdetails from storeprovider. " + ex.Message);
+            }
+        }
+
+        public static void SetDetails<T>(string key, T value)
+        {
+            var instanceVariable = Instance;
+            try
+            {
+                instanceVariable.SetDetails<T>(key, value);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("Error occured in setting userdetails in storeprovider. " + ex.Message);
+            }
+            
+        }
+
+        public static T GetDetails<T>(string key)
+        {
+            var instanceVariable = Instance;
+            try
+            {
+                return instanceVariable.GetDetails<T>(key);
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException("Error occured while getting userdetails from storeprovider. " + ex.Message);
+            }
+        }
+    }
+}
+
+
+
+using Ex.Common.Constant;
+using Ex.Common.Extension;
+using Ex.Common.Web.QueryStrings;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Web;
+using Ex.Common.Encryption;
+
+namespace Ex.Common.Web.UserDetails
+{
+    internal class UserDetailsSessionStoreProvider : IUserDetailsStoreProvider
+    {
+        public void SetDetails<T>(string key, T value)
+        {
+            SessionManager.Set(key, value);
+        }
+
+        public T GetDetails<T>(string key)
+        {
+            return SessionManager.Get<T>(key);
+        }
+
+
+
+    }
+
+
+    internal class UserDetailsReportsSessionStoreProvider : IUserDetailsStoreProvider
+    {
+        public void SetDetails<T>(string key, T value)
+        {
+
+            SessionManager.Set(key + GetUUIDForReports(), value);
+        }
+
+        public T GetDetails<T>(string key)
+        {
+            return SessionManager.Get<T>(key + GetUUIDForReports());
+        }
+
+        private string GetUUIDForReports()
+        {
+            RequestQueryString qStr = RequestManager.Get<RequestQueryString>(RequestConstant.WebRequestQueryString);
+            if (qStr == null || String.IsNullOrWhiteSpace(qStr.encqs))
+                return "";
+            Dictionary<string, string> vals = CryptoUtil.Decrypt(qStr.encqs);
+
+            if (vals.ContainsKey("id") && vals.ContainsKey("Reports") && vals.ContainsKey("uuid"))
+            {
+                return vals["uuid"];
+            }
+            else
+            {
+                return "";
+            }
+
+        }
+
+
+    }
+}
+
+
+
+using Ex.Common.Constant;
+using Ex.Common.Extension;
+using Ex.Common.Web.QueryStrings;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Web;
+
+namespace Ex.Common.Web.UserDetails
+{
+    public class UserInfo
+    {
+        private string _userId;
+        private string _userName;
+        private string _firstName;
+        private string _userLastAndFirstName;
+        private string _userPersonNumber;
+        private int? _ExProfileId;
+        private string _role;
+        private string _roleName;
+        private bool _multiRole;
+        private string _userLastLogin;
+
+        public string UserId {
+            get { return _userId; }
+            set { _userId = value; }
+        }
+
+        public string UserName
+        {
+            get { return _userName; }
+            set { _userName = value; }
+        }
+
+
+        public string FirstName
+        {
+            get { return _firstName; }
+            set { _firstName = value; }
+        }
+
+        public string UserLastAndFirstName
+        {
+            get { return _userLastAndFirstName; }
+            set { _userLastAndFirstName = value; }
+        }
+
+        public string UserPersonNumber
+        {
+            get { return _userPersonNumber; }
+            set { _userPersonNumber = value; }
+        }
+
+        public int? ExProfileId
+        {
+            get { return _ExProfileId; }
+            set { _ExProfileId = value; }
+        }
+
+        public string Role
+        {
+            get { return _role; }
+            set { _role = value; }
+        }
+
+        public string RoleName
+        {
+            get { return _roleName; }
+            set { _roleName = value; }
+        }
+
+        public bool MultiRole
+        {
+            get { return _multiRole; }
+            set { _multiRole = value; }
+        }
+
+        public string UserLastLogin
+        {
+            get { return _userLastLogin; }
+            set { _userLastLogin = value; }
+        }
+
+
+    }
+}
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+using Ex.Common.Extension;
+
+namespace Ex.Common.Web
+{
+    public static class SessionManager
+    {
+        static SessionManager() { }
+        
+        public static void Set<T>(string name, T value)
+        {
+            try  //No Web Senario.
+            {
+                if (value != null)
+                    HttpContext.Current.Session[name] = value;
+            }
+            catch { }
+        }
+
+        public static T Get<T>(string name)
+        {
+            try  //No Web Senario.
+            {
+                if (HttpContext.Current.Session[name] != null)
+                {
+                    return (T)HttpContext.Current.Session[name];
+                }
+            }
+            catch { }
+
+            return default(T);
+        }
+        
+        public static void Remove(string name)
+        {
+            try  //No Web Senario.
+            {
+                if (HttpContext.Current.Session[name] != null)
+                {
+                    HttpContext.Current.Session.Remove(name);
+                }
+            }
+            catch { }
+        }
+
+        public static void RemoveIfLongRunning(string name)
+        {
+
+        }
+
+        public static void Clear()
+        {
+            try  //No Web Senario.
+            {
+                HttpContext.Current.Session.Clear();
+            }
+            catch { }
+        }
+
+
+        public static string RequestID()
+        {
+            string id = string.Empty;
+            try
+            {
+                id = HttpContext.Current.Request.RequestContext.HttpContext.Timestamp.ToSpecificTimeZone().ToString();
+            }
+            catch { }
+
+            return id;
+        }
+    }
+}
+
+
+
+/////  USAAGE /////
+//under WEB.Config / Configuration/ appSettings
+<add key="UserStore" value="UserDetailsSessionStoreProvider" />
+

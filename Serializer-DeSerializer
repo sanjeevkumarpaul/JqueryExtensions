@@ -1,0 +1,78 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Web.Script.Serialization;
+using System.Xml.Serialization;
+
+namespace Ex.Common.XMLSerializer
+{
+    public static class Serializer
+    {
+        static Serializer() { }
+
+
+
+        public static string Serialize<T>(T type)
+        {
+            XmlSerializer engine = new XmlSerializer(typeof(T));
+            string data = string.Empty;
+
+            using (StringWriter writer = new StringWriter())
+            {
+                engine.Serialize(writer, type);
+                writer.Close();
+                data = writer.ToString();
+            }
+
+            return data;
+        }
+
+
+        public static T DeSerialize<T>(string xml) where T : new()
+        {
+            XmlSerializer engine = new XmlSerializer(typeof(T));
+            T type = default(T);
+
+            using (TextReader reader = new StringReader(xml))
+            {
+                type = (T)engine.Deserialize(reader);
+                reader.Close();
+            }
+
+            return type;
+        }
+
+        public static string JScriptSerialize<T>(T obj)
+        {
+            try
+            {
+                // Serializing an object into JSON results
+                JavaScriptSerializer js = new JavaScriptSerializer();
+                return js.Serialize(obj);
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error DeSerializing JSON results into an object.  " + ex);
+            }
+        }
+
+        public static T JScriptDeSerialize<T>(string results)
+        {
+            try
+            {
+                // deserializing JSON results into an object
+                JavaScriptSerializer js = new JavaScriptSerializer();
+                return js.Deserialize<T>(results);
+
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error DeSerializing JSON results into an object.  " + ex);
+            }
+        }
+
+    }
+}

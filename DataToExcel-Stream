@@ -1,0 +1,765 @@
+#define INCLUDE_WEB_FUNCTIONS
+
+using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Linq;
+using System.Text;
+using System.Diagnostics;
+using System.Data;
+using System.Globalization;
+using System.Reflection;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml;
+using System.Text.RegularExpressions;
+using System.IO;
+using System.Net;
+using MoreLinq;
+using Ex.Common.Configuration;
+using Ex.Common.Constant;
+using Ex.Common.LoggerSvc.Interfaces;
+
+namespace Ex.Common.Reports
+{
+    public class ExcelExporter
+    {
+
+        private int _sheetSize = 1000;
+        private string[] _colNames;
+        private string[] _colTitles;
+
+        public ExcelExporter(int sheetSize)
+        {
+            int configVal = 0;
+            configVal = Configurations.Get<int>("ExcelMaxRows");
+            _sheetSize = (configVal != 0) ? configVal : sheetSize;
+        }
+
+        /// <summary>
+        /// Create an Excel file, and write it out to a MemoryStream (rather than directly to a file)
+        /// </summary>
+        /// <param name="dt">DataTable containing the data to be written to the Excel.</param>
+        /// <param name="filename">The filename (without a path) to call the new Excel file.</param>
+        /// <param name="Response">HttpResponse of the current page.</param>
+        /// <returns>True if it was created succesfully, otherwise false.</returns>
+        public bool CreateExcelDocument(string filename, System.Data.DataTable dt, string[] colNames, string[] colTitle, string[] sortColNames, string[] sortColTitle)
+        {
+
+            //DataSet ds = new DataSet();
+            //ds.Tables.Add(dt);
+
+
+            int j = 0;
+            _colNames = String.Join(",", colNames).ToUpper().Split(',');
+            _colTitles = colTitle;
+
+            List<DataColumn> removeCols = new List<DataColumn>();
+            foreach (DataColumn col in dt.Columns) // delete columns that are not to be displayed in grid
+            {
+                if (GetColumnTitle(col.ColumnName) == "Not Found")
+                {
+                    removeCols.Add(col);
+                }
+            }
+
+            foreach (DataColumn col in removeCols)
+            {
+                dt.Columns.Remove(col);
+            }
+
+            for (int i = 0; i < colNames.Length; i++)
+            {
+                var col = dt.Columns[colNames[i]];
+                if (col != null)
+                {
+                    col.SetOrdinal(j++);
+                }
+                else
+                {
+                    // DB does not have this column ??
+
+                }
+            }
+
+            DataSet ds = new DataSet();
+            ds.Tables.Add(dt);
+
+
+
+            SaveExcelDocument(ds, filename);
+            ds.Dispose();
+            return true;
+           
+        }
+
+
+        public Stream CreateExcelDocumentAsStream(string filename, System.Data.DataTable dt, string[] colNames, string[] colTitle, string[] sortColNames, string[] sortColTitle)
+        {
+            int j = 0;
+            _colNames = String.Join(",", colNames).ToUpper().Split(',');
+            _colTitles = colTitle;
+
+            List<DataColumn> removeCols = new List<DataColumn>();
+            foreach(DataColumn col in dt.Columns) // delete columns that are not to be displayed in grid
+            {
+                if (GetColumnTitle(col.ColumnName) == "Not Found")
+                {
+                    removeCols.Add(col);
+                }
+            }
+
+            foreach (DataColumn col in removeCols)
+            {
+                dt.Columns.Remove(col);
+            }
+
+            for(int i=0;i<colNames.Length;i++)
+            {
+                var col = dt.Columns[colNames[i]] ;
+                if (col != null)
+                {
+                    col.SetOrdinal(j++);
+                }
+                else
+                {
+                    // DB does not have this column ??
+
+                }
+            }
+
+            DataSet ds = new DataSet();
+            ds.Tables.Add(dt);
+
+
+
+            MemoryStream stream = new System.IO.MemoryStream();
+            using (SpreadsheetDocument document = SpreadsheetDocument.Create(stream, SpreadsheetDocumentType.Workbook, true))
+            {
+                WriteExcelFile(ds, document);
+            }
+            stream.Flush();
+            stream.Position = 0;
+            ds.Dispose();
+            return stream;
+        }
+
+
+
+        /// <summary>
+        /// Create an Excel file, and write it to a file.
+        /// </summary>
+        /// <param name="ds">DataSet containing the data to be written to the Excel.</param>
+        /// <param name="excelFilename">Name of file to be written.</param>
+        /// <returns>True if successful, false if something went wrong.</returns>
+        public bool SaveExcelDocument(DataSet ds, string excelFilename)
+        {
+            excelFilename = excelFilename.Replace("/","_");
+            using (SpreadsheetDocument document = SpreadsheetDocument.Create(excelFilename, SpreadsheetDocumentType.Workbook))
+            {
+                //BatchLogger.LogMessage("Saving file:" + excelFilename, LoggerLevel.INFO);
+                WriteExcelFile(ds, document);
+            }
+            return true;
+        }
+
+        private void WriteExcelFile(DataSet ds, SpreadsheetDocument spreadsheet)
+        {
+            // Workbook
+            spreadsheet.AddWorkbookPart();
+            spreadsheet.WorkbookPart.Workbook = new DocumentFormat.OpenXml.Spreadsheet.Workbook();
+
+            // Stylesheet
+            DocumentFormat.OpenXml.Packaging.WorkbookStylesPart workbookStylesPart = spreadsheet.WorkbookPart.AddNewPart<DocumentFormat.OpenXml.Packaging.WorkbookStylesPart>();
+            workbookStylesPart.Stylesheet = new DocumentFormat.OpenXml.Spreadsheet.Stylesheet();
+            workbookStylesPart.Stylesheet.Save();
+
+            AddBasicStyles(ref spreadsheet);
+
+
+            DataTable dt = ds.Tables[0];
+            int i = 0;
+            int totalCount = dt.Rows.Count;
+
+
+            uint worksheetNumber = 1;
+            Sheets sheets = spreadsheet.WorkbookPart.Workbook.AppendChild<Sheets>(new Sheets());
+
+            //Find the number of sheets
+            int numberOfSheets = dt.Rows.Count / _sheetSize + ((dt.Rows.Count % _sheetSize) == 0 ? 0 : 1);
+
+            for (int sheetCounter = 0; sheetCounter < numberOfSheets; sheetCounter++)
+            {
+                int startRowNumber = (sheetCounter * _sheetSize);
+                int endRowNumber = ((sheetCounter + 1) * _sheetSize) - 1;
+                if (endRowNumber >= totalCount)
+                    endRowNumber = totalCount - 1;
+
+                string worksheetName = string.Format("Rows {0}-{1}", (startRowNumber + 1).ToString(), (endRowNumber + 1).ToString());
+
+                //  Append this worksheet's data to our Workbook, using OpenXmlWriter, to prevent memory problems
+                WriteDataTableToExcelWorksheet(dt, startRowNumber, endRowNumber, spreadsheet, sheets, (uint)sheetCounter + 1, worksheetName);
+            }
+
+            //while (i < totalCount) //This iterates for all the records
+            //{
+            //    int startRow = i;
+            //    int endRow = i + sheetSize;
+
+            //    //  For each worksheet you want to create
+            //    string worksheetName = string.Format("Rows {0}-{1}", (startRow + 1).ToString(), endRow.ToString());
+
+            //    //  Append this worksheet's data to our Workbook, using OpenXmlWriter, to prevent memory problems
+            //    WriteDataTableToExcelWorksheet(dt, startRow, endRow, spreadsheet, sheets, worksheetNumber, worksheetName);
+            //    i = endRow;
+            //    worksheetNumber++;
+            //}
+
+            spreadsheet.WorkbookPart.Workbook.Save();
+        }
+
+        private string GetColumnTitle(string colName)
+        {
+            if (_colNames == null || _colNames.Length == 0 || _colTitles == null || _colTitles.Length == 0)
+            {
+                return colName;
+            }
+            int colIndex = Array.IndexOf(_colNames,colName.ToUpper());
+            return ((colIndex == -1) ? "Not Found" : _colTitles[colIndex]);
+        }
+
+        private void WriteDataTableToExcelWorksheetOld(DataTable dt, int startRow, int endRow, SpreadsheetDocument spreadsheet, Sheets sheets, uint worksheetNumber, string worksheetName)
+        {
+            //  Create worksheet part, and add it to the sheets collection in workbook
+            WorksheetPart newWorksheetPart = spreadsheet.WorkbookPart.AddNewPart<WorksheetPart>();
+            Sheet sheet = new Sheet() { Id = spreadsheet.WorkbookPart.GetIdOfPart(newWorksheetPart), SheetId = worksheetNumber, Name = worksheetName };
+            sheets.Append(sheet);
+            DataColumn col1 = dt.Columns["totalRows"];
+            if (col1 != null)
+            {
+                dt.Columns.Remove(col1);
+            }
+
+            DataColumn col2 = dt.Columns["rowNum"];
+            if (col2 != null)
+            {
+                dt.Columns.Remove(col2);
+            }
+
+            DataColumn col3 = dt.Columns["TotalRecords"];
+            if (col3 != null)
+            {
+                dt.Columns.Remove(col3);
+            }
+
+
+            OpenXmlWriter writer = OpenXmlWriter.Create(newWorksheetPart);
+
+            writer.WriteStartElement(new Worksheet());
+            writer.WriteStartElement(new SheetData());
+
+            string cellValue = "";
+
+            //  Create a Header Row in our Excel file, containing one header for each Column of data in our DataTable.
+            //
+            //  We'll also create an array, showing which type each column of data is (Text or Numeric), so when we come to write the actual
+            //  cells of data, we'll know if to write Text values or Numeric cell values.
+            int numberOfColumns = dt.Columns.Count;
+            bool[] IsNumericColumn = new bool[numberOfColumns];
+
+            string[] excelColumnNames = new string[numberOfColumns];
+            for (int n = 0; n < numberOfColumns; n++)
+                excelColumnNames[n] = GetExcelColumnName(n);
+
+
+            //
+            //  Create the Header row in our Excel Worksheet
+            //
+            uint rowIndex = 1;
+
+            writer.WriteStartElement(new Row { RowIndex = rowIndex });
+            for (int colInx = 0; colInx < numberOfColumns; colInx++)
+            {
+                DataColumn col = dt.Columns[colInx];
+                AppendTextCell(excelColumnNames[colInx] + "1", GetColumnTitle(col.ColumnName), ref writer);
+                IsNumericColumn[colInx] = (col.DataType.FullName == "System.Decimal") || (col.DataType.FullName == "System.Int32") || (col.DataType.FullName == "System.Double") || (col.DataType.FullName == "System.Single");
+            }
+            writer.WriteEndElement();   //  End of header "Row"
+
+            //
+            //  Now, step through each row of data in our DataTable...
+            //
+            double cellNumericValue = 0; DateTime cellDateValue = new DateTime();
+            Regex regexDt1 = new Regex("^([1-9]|0[1-9]|1[0-2])[- / .]([1-9]|0[1-9]|1[0-9]|2[0-9]|3[0-1])[- / .](1[9][0-9][0-9]|2[0][0-9][0-9])$");
+            for (int i1 = startRow; i1 < dt.Rows.Count; i1++) //DataRow dr in dt.Rows)
+            {
+                if (i1 < startRow) continue;
+                if (i1 > endRow) break;
+                ++rowIndex;
+                DataRow dr = dt.Rows[i1];
+                writer.WriteStartElement(new Row { RowIndex = rowIndex });
+                DateTime dt1 = new DateTime();
+
+                for (int colInx = 0; colInx < numberOfColumns; colInx++)
+                {
+                    if (null == dr.ItemArray[colInx] || dr.ItemArray[colInx] == System.DBNull.Value)
+                    {
+                        continue;
+                    }
+
+                    cellValue = dr.ItemArray[colInx].ToString();
+
+
+
+                    if (regexDt1.Match(cellValue).Success)
+                    {
+                        cellDateValue = new DateTime();
+                        if (DateTime.TryParse(cellValue, out cellDateValue))
+                        {
+                            AppendDateCell(excelColumnNames[colInx] + rowIndex.ToString(), cellDateValue, ref writer);
+
+                        }
+                    }
+                    else if (DateTime.TryParse(cellValue, out dt1) && cellValue.IndexOf("12:00:00 AM") != -1) // usually a date field
+                    {
+                        AppendTextCell(excelColumnNames[colInx] + rowIndex.ToString(), dt1.ToShortDateString(), ref writer);
+                    }
+                    else if (IsNumericColumn[colInx])
+                    {
+                        cellNumericValue = 0;
+                        if (double.TryParse(cellValue, out cellNumericValue))
+                        {
+                            cellValue = cellNumericValue.ToString();
+                            AppendNumericCell(excelColumnNames[colInx] + rowIndex.ToString(), cellValue, ref writer);
+                        }
+                    }
+                    else
+                    {
+                        AppendTextCell(excelColumnNames[colInx] + rowIndex.ToString(), cellValue, ref writer);
+                    }
+                }
+                writer.WriteEndElement();
+            }
+            writer.WriteEndElement();
+            writer.WriteEndElement();
+
+            writer.Close();
+        }
+
+        private bool IsDate(string dateTime)
+        {
+            DateTime dateValue;
+            string[] dateFormats = { "M/d/yyyy", "M/d/yyyy", "MM/dd/yyyy", "M/d/yy", "M/d/yy", "MM/dd/yy" };
+            if (DateTime.TryParseExact(dateTime.Replace("12:00:00 AM", "").Trim(), dateFormats,
+            new CultureInfo("en-US"),
+            DateTimeStyles.None,
+            out dateValue))
+            {
+                return true;
+            }
+            else
+            {
+                DateTime dt1;
+                if (DateTime.TryParse(dateTime, out dt1))
+                {
+                    if (dateTime.IndexOf("12:00:00 AM") != -1)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void GetColumnMetadata(DataTable dt, out bool[] IsNumericColumn, out bool[] IsDateColumn, out bool[] IsDateTimeColumn)
+        {
+            int numberOfColumns = dt.Columns.Count;
+            IsNumericColumn = new bool[numberOfColumns];
+            IsDateColumn = new bool[numberOfColumns];
+            IsDateTimeColumn = new bool[numberOfColumns];
+
+            //get column info from table if present
+            for (int colInx = 0; colInx < numberOfColumns; colInx++)
+            {
+                DataColumn col = dt.Columns[colInx];
+                IsNumericColumn[colInx] = IsDateColumn[colInx] = IsDateTimeColumn[colInx] = false;
+                IsNumericColumn[colInx] = (col.DataType.FullName == "System.Decimal") ||
+                                          (col.DataType.FullName == "System.Int32") ||
+                                          (col.DataType.FullName == "System.Double") ||
+                                          (col.DataType.FullName == "System.Single");
+                IsDateTimeColumn[colInx] = !IsNumericColumn[colInx] && col.DataType.FullName == "System.DateTime";
+
+            }
+
+            //iterate over non null row and see if some deduction can be made
+            if (dt.Rows.Count > 0)
+            {
+
+                for (int colInx = 0; colInx < numberOfColumns; colInx++)
+                {
+                    if (IsDateTimeColumn[colInx])
+                    {
+                        DataRow dr = dt.Select("[" + dt.Columns[colInx].ColumnName + "] is not null").FirstOrDefault();
+                        if (dr == null)
+                        {
+                            continue;
+                        }
+                        string cellValue = dr[colInx].ToString();
+                        if (!String.IsNullOrWhiteSpace(cellValue))
+                        {
+                            if (IsDate(cellValue))
+                            {
+                                IsDateColumn[colInx] = true;
+                                IsDateTimeColumn[colInx] = false;
+                            }
+                            else
+                            {
+                                IsDateColumn[colInx] = false;
+                                IsDateTimeColumn[colInx] = true;
+                            }
+
+
+                        }
+                    }
+                    else if (!IsNumericColumn[colInx] && !IsDateTimeColumn[colInx])
+                    {
+                        DataRow dr = dt.Select("ISNULL([" + dt.Columns[colInx].ColumnName + "],'')<>''").FirstOrDefault();
+                        if (dr == null)
+                        {
+                            IsDateColumn[colInx] = false;
+                            IsDateTimeColumn[colInx] = false;
+                            continue;
+                        }
+
+                        if (null == dr.ItemArray[colInx] || dr.ItemArray[colInx] == System.DBNull.Value)
+                        {
+                            IsDateColumn[colInx] = false;
+                            IsDateTimeColumn[colInx] = false;
+                            continue;
+                        }
+
+                        string cellValue = dr[colInx] as string;
+                        if (!String.IsNullOrWhiteSpace(cellValue))
+                        {
+                            DateTime dt1;
+                            if (IsDate(cellValue))
+                            {
+                                IsDateColumn[colInx] = true;
+                                IsDateTimeColumn[colInx] = false;
+                            }
+                            else if(DateTime.TryParse(cellValue, out dt1))
+                            {
+                                IsDateColumn[colInx] = false;
+                                IsDateTimeColumn[colInx] = true;                                
+                            }
+                            
+                            
+                        }
+                    }
+
+                }
+            }
+
+
+
+        }
+
+
+        private void WriteDataTableToExcelWorksheet(DataTable dt, int startRow, int endRow, SpreadsheetDocument spreadsheet, Sheets sheets, uint worksheetNumber, string worksheetName)
+        {
+            //  Create worksheet part, and add it to the sheets collection in workbook
+            WorksheetPart newWorksheetPart = spreadsheet.WorkbookPart.AddNewPart<WorksheetPart>();
+            Sheet sheet = new Sheet() { Id = spreadsheet.WorkbookPart.GetIdOfPart(newWorksheetPart), SheetId = worksheetNumber, Name = worksheetName };
+            sheets.Append(sheet);
+            DataColumn col1 = dt.Columns["totalRows"];
+            if (col1 != null)
+            {
+                dt.Columns.Remove(col1);
+            }
+
+            DataColumn col2 = dt.Columns["rowNum"];
+            if (col2 != null)
+            {
+                dt.Columns.Remove(col2);
+            }
+
+            DataColumn col3 = dt.Columns["TotalRecords"];
+            if (col3 != null)
+            {
+                dt.Columns.Remove(col3);
+            }
+
+
+            OpenXmlWriter writer = OpenXmlWriter.Create(newWorksheetPart);
+
+            writer.WriteStartElement(new Worksheet());
+            writer.WriteStartElement(new SheetData());
+
+            string cellValue = "";
+
+            //  Create a Header Row in our Excel file, containing one header for each Column of data in our DataTable.
+            //
+            //  We'll also create an array, showing which type each column of data is (Text or Numeric), so when we come to write the actual
+            //  cells of data, we'll know if to write Text values or Numeric cell values.
+            int numberOfColumns = dt.Columns.Count;
+            bool[] IsNumericColumn = new bool[numberOfColumns];
+            bool[] IsDateColumn = new bool[numberOfColumns];
+            bool[] IsDateTimeColumn = new bool[numberOfColumns];
+            GetColumnMetadata(dt, out IsNumericColumn, out IsDateColumn, out IsDateTimeColumn);
+
+            string[] excelColumnNames = new string[numberOfColumns];
+            for (int n = 0; n < numberOfColumns; n++)
+                excelColumnNames[n] = GetExcelColumnName(n);
+
+
+            //
+            //  Create the Header row in our Excel Worksheet
+            //
+            uint rowIndex = 1;
+
+            writer.WriteStartElement(new Row { RowIndex = rowIndex });
+            for (int colInx = 0; colInx < numberOfColumns; colInx++)
+            {
+                DataColumn col = dt.Columns[colInx];
+                AppendTextCell(excelColumnNames[colInx] + "1", GetColumnTitle(col.ColumnName), ref writer);
+                IsNumericColumn[colInx] = (col.DataType.FullName == "System.Decimal") || (col.DataType.FullName == "System.Int32") || (col.DataType.FullName == "System.Double") || (col.DataType.FullName == "System.Single");
+            }
+            writer.WriteEndElement();   //  End of header "Row"
+
+            //
+            //  Now, step through each row of data in our DataTable...
+            //
+            double cellNumericValue = 0; DateTime cellDateValue = new DateTime();
+            Regex regexDt1 = new Regex("^([1-9]|0[1-9]|1[0-2])[- / .]([1-9]|0[1-9]|1[0-9]|2[0-9]|3[0-1])[- / .](1[9][0-9][0-9]|2[0][0-9][0-9])$");
+            for (int i1 = startRow; i1 < dt.Rows.Count; i1++) //DataRow dr in dt.Rows)
+            {
+                if (i1 < startRow) continue;
+                if (i1 > endRow) break;
+                ++rowIndex;
+                DataRow dr = dt.Rows[i1];
+                writer.WriteStartElement(new Row { RowIndex = rowIndex });
+                DateTime dt1 = new DateTime();
+
+                for (int colInx = 0; colInx < numberOfColumns; colInx++)
+                {
+                    if (null == dr.ItemArray[colInx] || dr.ItemArray[colInx] == System.DBNull.Value)
+                    {
+                        continue;
+                    }
+
+                    cellValue = dr.ItemArray[colInx].ToString();
+
+
+                    if (IsDateColumn[colInx] && DateTime.TryParse(cellValue, out dt1))
+                    {
+                        AppendTextCell(excelColumnNames[colInx] + rowIndex.ToString(), dt1.ToString(@"MM/dd/yyyy"), ref writer);
+
+                    }
+                    else if (IsDateTimeColumn[colInx] && DateTime.TryParse(cellValue, out dt1))
+                    {
+                        AppendTextCell(excelColumnNames[colInx] + rowIndex.ToString(),dt1.ToString(@"MM/dd/yyyy HH:mm:ss"), ref writer);
+                    }
+                    else if (IsNumericColumn[colInx])
+                    {
+                        cellNumericValue = 0;
+                        if (double.TryParse(cellValue, out cellNumericValue))
+                        {
+                            cellValue = cellNumericValue.ToString();
+                            AppendNumericCell(excelColumnNames[colInx] + rowIndex.ToString(), cellValue, ref writer);
+                        }
+                    }
+                    else if (regexDt1.Match(cellValue).Success)
+                    {
+                        if (DateTime.TryParse(cellValue, out cellDateValue))
+                        {
+                            AppendDateCell(excelColumnNames[colInx] + rowIndex.ToString(), cellDateValue, ref writer);
+
+                        }
+                    }                        
+                    else
+                    {
+                        AppendTextCell(excelColumnNames[colInx] + rowIndex.ToString(), cellValue, ref writer);
+                    }
+                }
+                writer.WriteEndElement();
+            }
+            writer.WriteEndElement();
+            writer.WriteEndElement();
+
+            writer.Close();
+        }
+
+        private void AppendTextCell(string cellReference, string cellStringValue, ref OpenXmlWriter writer)
+        {
+            writer.WriteElement(new Cell { CellValue = new CellValue(cellStringValue), CellReference = cellReference, DataType = CellValues.String });
+        }
+
+        private void AppendNumericCell(string cellReference, string cellStringValue, ref OpenXmlWriter writer)
+        {
+            writer.WriteElement(new Cell { CellValue = new CellValue(cellStringValue), CellReference = cellReference, DataType = CellValues.Number });
+        }
+
+        private void AppendDateCell(string cellReference, DateTime cellStringValue, ref OpenXmlWriter writer)
+        {
+            writer.WriteElement(new Cell { CellValue = new CellValue(cellStringValue.ToOADate().ToString()), CellReference = cellReference, DataType = CellValues.Date, StyleIndex = 1 });
+        }
+
+        private string GetExcelColumnName(int columnIndex)
+        {
+            if (columnIndex < 26)
+                return ((char)('A' + columnIndex)).ToString();
+
+            char firstChar = (char)('A' + (columnIndex / 26) - 1);
+            char secondChar = (char)('A' + (columnIndex % 26));
+
+            return string.Format("{0}{1}", firstChar, secondChar);
+        }
+
+        public bool AddBasicStyles(ref DocumentFormat.OpenXml.Packaging.SpreadsheetDocument spreadsheet)
+        {
+            DocumentFormat.OpenXml.Spreadsheet.Stylesheet stylesheet = spreadsheet.WorkbookPart.WorkbookStylesPart.Stylesheet;
+
+            // Numbering formats (x:numFmts)
+            stylesheet.InsertAt<DocumentFormat.OpenXml.Spreadsheet.NumberingFormats>(new DocumentFormat.OpenXml.Spreadsheet.NumberingFormats(), 0);
+            // Currency
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.NumberingFormats>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.NumberingFormat>(
+               new DocumentFormat.OpenXml.Spreadsheet.NumberingFormat()
+               {
+                   NumberFormatId = 164,
+                   FormatCode = "#,##0.00"
+                   + "\\ \"" + System.Globalization.CultureInfo.CurrentUICulture.NumberFormat.CurrencySymbol + "\""
+               }, 0);
+
+            // Fonts (x:fonts)
+            stylesheet.InsertAt<DocumentFormat.OpenXml.Spreadsheet.Fonts>(new DocumentFormat.OpenXml.Spreadsheet.Fonts(), 1);
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.Fonts>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.Font>(
+               new DocumentFormat.OpenXml.Spreadsheet.Font()
+               {
+                   FontSize = new DocumentFormat.OpenXml.Spreadsheet.FontSize()
+                   {
+                       Val = 11
+                   },
+                   FontName = new DocumentFormat.OpenXml.Spreadsheet.FontName()
+                   {
+                       Val = "Calibri"
+                   }
+               }, 0);
+
+            // Fills (x:fills)
+            stylesheet.InsertAt<DocumentFormat.OpenXml.Spreadsheet.Fills>(new DocumentFormat.OpenXml.Spreadsheet.Fills(), 2);
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.Fills>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.Fill>(
+               new DocumentFormat.OpenXml.Spreadsheet.Fill()
+               {
+                   PatternFill = new DocumentFormat.OpenXml.Spreadsheet.PatternFill()
+                   {
+                       PatternType = new DocumentFormat.OpenXml.EnumValue<DocumentFormat.OpenXml.Spreadsheet.PatternValues>()
+                       {
+                           Value = DocumentFormat.OpenXml.Spreadsheet.PatternValues.None
+                       }
+                   }
+               }, 0);
+
+            // Borders (x:borders)
+            stylesheet.InsertAt<DocumentFormat.OpenXml.Spreadsheet.Borders>(new DocumentFormat.OpenXml.Spreadsheet.Borders(), 3);
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.Borders>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.Border>(
+               new DocumentFormat.OpenXml.Spreadsheet.Border()
+               {
+                   LeftBorder = new DocumentFormat.OpenXml.Spreadsheet.LeftBorder(),
+                   RightBorder = new DocumentFormat.OpenXml.Spreadsheet.RightBorder(),
+                   TopBorder = new DocumentFormat.OpenXml.Spreadsheet.TopBorder(),
+                   BottomBorder = new DocumentFormat.OpenXml.Spreadsheet.BottomBorder(),
+                   DiagonalBorder = new DocumentFormat.OpenXml.Spreadsheet.DiagonalBorder()
+               }, 0);
+
+            // Cell style formats (x:CellStyleXfs)
+            stylesheet.InsertAt<DocumentFormat.OpenXml.Spreadsheet.CellStyleFormats>(new DocumentFormat.OpenXml.Spreadsheet.CellStyleFormats(), 4);
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.CellStyleFormats>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.CellFormat>(
+               new DocumentFormat.OpenXml.Spreadsheet.CellFormat()
+               {
+                   NumberFormatId = 0,
+                   FontId = 0,
+                   FillId = 0,
+                   BorderId = 0
+               }, 0);
+
+            // Cell formats (x:CellXfs)
+            stylesheet.InsertAt<DocumentFormat.OpenXml.Spreadsheet.CellFormats>(new DocumentFormat.OpenXml.Spreadsheet.CellFormats(), 5);
+            // General text
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.CellFormats>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.CellFormat>(
+               new DocumentFormat.OpenXml.Spreadsheet.CellFormat()
+               {
+                   FormatId = 0,
+                   NumberFormatId = 0
+               }, 0);
+            // Date
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.CellFormats>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.CellFormat>(
+               new DocumentFormat.OpenXml.Spreadsheet.CellFormat()
+               {
+                   ApplyNumberFormat = true,
+                   FormatId = 0,
+                   NumberFormatId = 14,
+                   FontId = 0,
+                   FillId = 0,
+                   BorderId = 0
+               },
+                  1);
+            // Currency
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.CellFormats>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.CellFormat>(
+               new DocumentFormat.OpenXml.Spreadsheet.CellFormat()
+               {
+                   ApplyNumberFormat = true,
+                   FormatId = 0,
+                   NumberFormatId = 164,
+                   FontId = 0,
+                   FillId = 0,
+                   BorderId = 0
+               },
+                  2);
+            // Percentage
+            stylesheet.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.CellFormats>().InsertAt<DocumentFormat.OpenXml.Spreadsheet.CellFormat>(
+               new DocumentFormat.OpenXml.Spreadsheet.CellFormat()
+               {
+                   ApplyNumberFormat = true,
+                   FormatId = 0,
+                   NumberFormatId = 10,
+                   FontId = 0,
+                   FillId = 0,
+                   BorderId = 0
+               },
+                  3);
+
+            stylesheet.Save();
+
+            return true;
+        }
+
+        public bool SetColumnWidth(DocumentFormat.OpenXml.Spreadsheet.Worksheet worksheet, int columnIndex, int width)
+        {
+            DocumentFormat.OpenXml.Spreadsheet.Columns columns;
+            DocumentFormat.OpenXml.Spreadsheet.Column column;
+
+            // Get the column collection exists
+            columns = worksheet.Elements<DocumentFormat.OpenXml.Spreadsheet.Columns>().FirstOrDefault();
+            if (columns == null)
+            {
+                return false;
+            }
+            // Get the column
+            column = columns.Elements<DocumentFormat.OpenXml.Spreadsheet.Column>().Where(item => item.Min == columnIndex).FirstOrDefault();
+            if (columns == null)
+            {
+                return false;
+            }
+            column.Width = width;
+            column.CustomWidth = true;
+
+            worksheet.Save();
+
+            return true;
+        }
+    }
+}

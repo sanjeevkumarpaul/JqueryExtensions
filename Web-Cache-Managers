@@ -1099,3 +1099,109 @@ namespace Ex.Common.Web
 
 
 
+
+
+using Ex.Common.Configuration;
+using Ex.Common.Constant;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Caching;
+using System.Text;
+
+
+namespace Ex.Common.Memory
+{
+    public static class CacheMemoryManager
+    {        
+        public static void Set<T>(string name, T value)
+        {
+            SetCache<T>(name, value);               
+        }
+
+        public static void SetLimited<T>(string name, T value)
+        {
+            SetCache<T>(name, 
+                        value, 
+                        CacheConstant.AuditLimitedElapseTimeInSeconds, 
+                        new TimeSpan(0, 0, CacheConstant.AuditLimitedElapseTimeInSeconds)); 
+        }
+
+        public static T Get<T>(string name)
+        {
+            if (Exists(name))
+            {
+                return (T)MemoryCache.Default.GetCacheItem(name).Value;
+            }
+
+            return default(T);
+        }
+
+        public static void Remove(string name)
+        {
+            if (Exists(name))
+            {
+                MemoryCache.Default.Remove(name);
+                MemoryCache.Default.Remove(GetAbsoluteKey(name));
+            }
+        }
+
+        public static bool IsAvailable(string name)
+        {
+            return Exists(name);
+        }
+
+        
+        //Private methods
+        //========================================
+
+        private static void SetCache<T>(string name, T value, Nullable<int> absoluteSeconds = null, Nullable<TimeSpan> slidingTime = null)
+        {
+            if (value != null)
+            {
+                Remove(name);
+                var policy = GetCachePolicy(name, absoluteSeconds, slidingTime);
+                MemoryCache.Default.Add(name, value, policy, null);
+            }  
+        }
+
+        private static bool Exists(string key)
+        {
+            try
+            {
+                return MemoryCache.Default.GetCacheItem(key) != null;
+            }
+            catch 
+            {
+                
+            }
+
+            return false;
+        }
+
+        private static CacheItemPolicy GetCachePolicy(string key, Nullable<int> absoluteSeconds = null, Nullable<TimeSpan> slidingTime = null)
+        {
+            key = GetAbsoluteKey(key);
+            string[] absKey = new string[] { key };
+
+            MemoryCache.Default.Add(key, 
+                                    new object(), 
+                                    absoluteSeconds == null ? DateTimeOffset.Now.AddMinutes(Configurations.Get<int>(ConfigConstant.AuditCacheLapseTimeInMunites, 
+                                                                                                                    Defaults.AuditCacheLapseTimeInMinutes)) : DateTimeOffset.Now.AddSeconds((int)absoluteSeconds));
+
+            CacheEntryChangeMonitor monitor = MemoryCache.Default.CreateCacheEntryChangeMonitor(absKey);
+
+            CacheItemPolicy policy = new CacheItemPolicy();
+            policy.ChangeMonitors.Add(monitor);
+            policy.SlidingExpiration = slidingTime == null ? new TimeSpan(23, 0, 0) : (TimeSpan)slidingTime;
+
+            return policy;
+        }
+
+        private static string GetAbsoluteKey(string name)
+        {
+            return string.Format("Absolute~", name);
+        }
+
+    }
+}

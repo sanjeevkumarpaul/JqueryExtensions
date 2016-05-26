@@ -1,0 +1,237 @@
+//var Debug = true;
+
+ angular.module('constants', [])
+    .constant('APP_NAME', 'XXX')
+    .constant('APP_VERSION', '1.0')
+    .constant('webserviceUrl', 'http://localhost:xxxx')
+    .constant('WebAPPUrl', 'http://localhost:xxxx')
+    .constant('Someurl', 'http://localhost/somepage.aspx')
+    .constant('WebUrl', 'http://localhost:xxxx');
+    
+
+
+(function () {
+    "use strict";
+  
+    var MyApp = angular.module('MyApp', ['ui.router', 'constants']);
+
+    MyApp.config(function ($stateProvider, $urlRouterProvider) {
+        for (var i = 0; i < dataToJavascript.length; i++) {
+            $stateProvider.state(dataToJavascript[i].RouteName, {
+                url: "/" + dataToJavascript[i].RouteName,
+                templateUrl: dataToJavascript[i].RouteViewPath,
+                controller: dataToJavascript[i].RouteController
+            });
+            if (dataToJavascript[i].StepOrder === 1) {
+                MyApp.firstState = dataToJavascript[i].RouteName;
+            }
+        }
+        
+    });
+
+    MyApp.run([
+        '$state', function ($state) {
+
+            $state.transitionTo(MyApp.firstState);
+            /*
+            var states = $state.get();
+            for (var i = 0; i < states.length; i++) {
+                var stat = states[i];
+                debugger;
+                if (stat.templateUrl !== undefined && stat.templateUrl.indexOf('Step') !== -1) {
+                    $state.transitionTo(stat.name);
+                    break;
+                }
+                
+            }
+            */
+            
+        }
+    ]); 
+    
+})();
+
+
+
+(function () {
+    "use strict";
+    var MyApp= angular.module('MyApp');
+    MyApp.controller("BaseController", [
+        "$rootScope", "$scope", '$http', '$window', 'webserviceUrl', "$q", "$state", function ($rootScope, $scope, $http, $window, webserviceUrl, $q, $state) {
+            $scope.stepId = 1;
+            $scope.stepDesc = 'Step 1 description';
+
+
+            $scope.setPage = function (page) {
+                //debugger;
+                $state.transitionTo(page);
+                return false;
+            };
+
+            $scope.GetRoutesData = function(stepID) {
+                return $http.get(webserviceUrl + '/api/WizardController/GetWizardRoutes2/Param1/' + stepID);
+            }
+
+
+            $scope.SetStepModel = function(currentControllerName) {
+                var states = $state.get();
+                for (var i = 0; i < states.length; i++) {
+                    var stat = states[i];
+                    if (stat.controller !== undefined && stat.controller === currentControllerName) {
+                        var stepID = stat.name;
+                        $scope.GetRoutesData(stepID).success(function (data) {
+                            debugger;
+                            $scope.NextStepID = ''+ data.nextStepID;
+                            $scope.PrevStepID = '' + data.prevStepID;
+                        }).error(function (data, status, headers, config) {
+                            $scope.dialog.showError(status);
+                        });
+
+                        break;
+                    }
+                }
+            }
+            
+
+            $scope.$on('$stateChangeStart', function (event) {
+                if ($scope.unsavedChanges) { //or however you check for unsaved changes
+                    event.preventDefault();
+                }
+            });
+
+        }]);
+})();
+
+
+//Wizard Page 1
+
+(function () {
+    "use strict";
+    var MyApp = angular.module('MyApp');
+    MyApp.controller("My1Controller", [
+        "$rootScope", "$scope", '$http', '$window', 'webserviceUrl', "$q","$controller","$state", function($rootScope, $scope, $http, $window, webserviceUrl, $q, $controller,$state) {
+            $scope.stepId = 1;
+            $scope.stepDesc = 'Step 1 description';
+            $controller('BaseController', { $scope: $scope, $rootScope: $rootScope, $http: $http, $window: $window, webserviceUrl: webserviceUrl });
+            $scope.CurrentControllerName = 'My1Controller';
+            $scope.SetStepModel($scope.CurrentControllerName);
+
+
+        }]);
+})();
+
+
+//Wizard Page 2
+
+(function () {
+    "use strict";
+    var MyApp = angular.module('MyApp');
+    MyApp.controller("My2Controller", [
+        "$rootScope", "$scope", '$http', '$window', 'webserviceUrl', "$q","$controller","$state", function ($rootScope, $scope, $http, $window, webserviceUrl, $q, $controller,$state) {
+            $controller('BaseController', { $scope: $scope, $rootScope: $rootScope, $http: $http, $window: $window, webserviceUrl: webserviceUrl });
+            $scope.stepId = 2;
+            $scope.stepDesc = 'Step 2 description';
+
+            $scope.CurrentControllerName = 'My2Controller';
+            $scope.SetStepModel($scope.CurrentControllerName);
+        }]);
+})();
+
+
+// Wizard Page 3
+
+
+(function () {
+    "use strict";
+    var MyApp = angular.module('MyApp');
+    MyApp.controller("My3Controller", [
+        "$rootScope", "$scope", '$http', '$window', 'webserviceUrl', "$q","$controller","$state", function ($rootScope, $scope, $http, $window, webserviceUrl, $q,$controller, $state) {
+            $controller('BaseController', { $scope: $scope, $rootScope: $rootScope, $http: $http, $window: $window, webserviceUrl: webserviceUrl });
+            $scope.stepId = 3;
+            
+            $scope.stepDesc = 'Step 3 description';
+
+            $scope.CurrentControllerName = 'MyController';
+            $scope.SetStepModel($scope.CurrentControllerName);
+
+        }]);
+})();
+
+
+Some Data Field at Service Layer/Model
+=========================================
+(Lets say ServiceLayer)
+[DataContract]
+public class RoutesData
+{
+	[DataMember]
+	public string RouteName { get; set; }
+	[DataMember]
+	public string RouteViewPath { get; set; }
+	[DataMember]
+	public string RouteController { get; set; }
+	[DataMember]
+	public int StepID { get; set; }
+	[DataMember]
+	public int PrevStepID { get; set; }
+	[DataMember]
+	public int NextStepID { get; set; }
+	[DataMember]
+	public int StepOrder { get; set; }
+}
+
+
+
+Web API to get some Script Related Data
+=========================================================
+[System.Web.Http.Route("GetWizardRoutes/{param}")]
+[System.Web.Http.HttpGet]
+public HttpResponseMessage GetWizardRoutes1(string param)
+{
+	List<RoutesData> resp = ServiceLayer.GetRoutesData(param);
+	string respStr = new JavaScriptSerializer().Serialize(param);
+
+	respStr = "var dataToJavascript = " + respStr;
+	var response = this.Request.CreateResponse(HttpStatusCode.OK);
+	response.Content = new StringContent(respStr, Encoding.UTF8, "application/json");
+	return response;
+}
+
+
+MVC VIEWS ( Controller not coded here... )
+
+1. WizardStepFooter.cshtml
+==========================================================================================
+
+<a href="#"  ng-click="setPage(PrevStepID)" ng-show="PrevStepID!=='-1'">Previous</a>
+<a href="#" ng-click="setPage(NextStepID)" ng-show="NextStepID!=='-1'">Next</a>
+
+
+2. Main Index Page ...
+===========================================================================================
+<script src="UrlToLoadSomeScriptData/GetwizardRoutes/someParam"></script>  <!-- This should get dataToJavascript object loaded -->
+
+@section scripts
+{
+        @Scripts.Render("~/bundles/Scripts/angularFolder/MyApp/") ;	//It adds all Javascript in this folder. 
+}
+
+div class="container" id="MyAppMainDiv" ng-app="MyApp" ng-cloak>
+   
+      <div ui-view></div>			<!-- This directive actually puts State Router of Angular (ui.State) -->
+</div>
+
+3.Wizard pages follows
+==============================================
+page1
+...
+@Html.Partial("~/Views/Steps/WizardStepFooter.cshtml")
+
+page2
+...
+@Html.Partial("~/Views/Steps/WizardStepFooter.cshtml")
+
+page3
+...@Html.Partial("~/Views/Steps/WizardStepFooter.cshtml")
+
+

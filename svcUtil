@@ -1,0 +1,36 @@
+
+@echo off
+
+setlocal 
+
+set THE_DIR=SomeFolder
+set THE_NAME=ServiceNameYouWantToName
+set THE_SERVICE=%THE_NAME%Service
+set THE_PROXY=%THE_NAME%ServiceProxy
+set THE_URL=http://localhost:portnumber/%THE_SERVICE%.svc?wsdl  
+set THE_NMSPC=ANY.Proxy.%THE_SERVICE%
+
+echo.
+echo *************************************************** 
+echo		START *** Generating %THE_PROXY%
+echo *************************************************** 
+echo.
+
+
+REM	goto exit
+
+YOUR_PATH\svcutil %THE_URL% /ct:System.Collections.Generic.List`1 /enableDataBinding /n:*,%THE_NMSPC% /d:%THE_DIR% /o:%THE_PROXY%  /noconfig
+
+
+:exit 
+
+echo.
+echo *************************************************** 
+echo		END *** Generating %THE_PROXY%
+echo *************************************************** 
+echo.
+
+endlocal 
+
+echo on
+

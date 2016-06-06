@@ -7,9 +7,69 @@
     .constant('WebAPPUrl', 'http://localhost:xxxx')
     .constant('Someurl', 'http://localhost/somepage.aspx')
     .constant('WebUrl', 'http://localhost:xxxx');
-    
 
+<!-- Either Provider -->    
+(function() {
+    "use strict";
+    angular.module("SomeApp", ['kendo.directives', 'ui.router', 'uiModule', 'constants'])
+        .provider('examRequestProvider', function ($stateProvider) {
+            this.$get = [
+                '$http', 'webserviceUrl', '$state', 'uiFactory', function ($http, webserviceUrl, $state, uiFactory) {
+                    return {
+                        addState: function(transTypeCode) {
+                            $http({
+                                url: webserviceUrl + '/api/WizardNavigation/GetAllSteps?someType=' + someTypeCode,
+                                method: 'GET',
+                            }).success(function (data, status, headers, config) {
+                                $.each(data, function (idx, obj) {
+                                    var parts = obj.viewPath.split('#');
+                                    $stateProvider
+                                        .state(parts[0], {
+                                            url: parts[0],
+                                            templateUrl: parts[1],
+                                            controller: parts[2],
+                                            onEnter: function () {
+                                                uiFactory.loading('Loading...');
+                                            }
+                                        });
+                                });
+                                $state.go('FilingFirm');
+                            }).error(function(data, status, headers, config) {
+                                console.error(data);
+                            });
+                            
+                        }
+                    }
+                }
+            ];
+        })
+        .config(function($stateProvider, $urlRouterProvider) {
+            $urlRouterProvider.otherwise('/index');
+        })
+        .run(['$state', 'examRequestProvider', function ($state, $examRequestProvider) {
+            $examRequestProvider.addState('SOMETYPE');
+        }]);
+})();
 
+---- MODELS -----
+public class WizardNavigationDTO
+{
+	public int StepId { get; set; }
+	public string StepDescription { get; set; }
+	public string ViewPath { get; set; }
+	public List<WizardStepApprover> Approvers { get; set; }
+}
+
+public class WizardStepApprover
+{
+	public int ApproverId { get; set; }
+	public int ApproverType { get; set; }
+	public int? ApprovalOrder { get; set; }
+}
+
+<!-- OR -->
+
+<!-- Directly using Module -->
 (function () {
     "use strict";
   

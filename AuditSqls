@@ -1,0 +1,898 @@
+
+table_audit_sub_sections
+table_audit_sections
+table_audit_sub_section_record_identifiers
+
+table_audit_field_metadata
+
+table_audit_business_id_columns
+table_audit_sections_business_id_columns
+
+
+table_audit_section_value_determiner			-- This is for NEW WEBMAIN to identify Shared Resources
+
+table_audit_ctrl_action_section_defaults		-- This is for OLD WEB to identity Shared Resources
+
+table_audit_users								-- NON FA Users who logs in, details of user information will be captured for the first time.
+
+-- MAIN TABLE WHERE AUDIT HISTORY IS STORED --
+table_audit_history						
+
+
+CREATE VIEW [dbo].[VWsome_AUDIT_HISTORY_PROFILEIDCOLUMNS]		-- select * from VWsome_AUDIT_HISTORY_PROFILEIDCOLUMNS
+AS		
+		SELECT Value As ColumnName, RowIndex FROM Dbo.FN_Audit_ParseDelimitedText(	'some_profile_id'
+																				   +',branch_id'
+																				   +',agency_id'
+																				   +',bac_wkr_id'														   
+																				   , DEFAULT);
+
+GO
+
+-- START table_audit_ctrl_action_section_defaults START --
+Affiliations,DeleteAffiliationLOA,IADelLoa,Web,,12,NULL,NULL,1
+Agency,DeleteAppointmentLOA,DelAgeApp,Web,,37,NULL,NULL,1
+Agency,DeleteDRLP,DeleteDRLP,Web,,34,NULL,NULL,1
+Agency,DeleteLicenseLOA,DelAgeLic,Web,,36,NULL,NULL,1
+Agency,DeleteOffndDir,DeleteODD,Web,,35,NULL,NULL,1
+Agency,SaveAppointmentInformation,SavAppInf,Web,,37,NULL,NULL,NULL
+Agency,SaveDisclosuresAgency,SaveDA,Web,,43,NULL,NULL,NULL
+Agency,SaveDRLP,SaveDRLP,Web,,34,NULL,NULL,NULL
+Agency,SaveInformation,SaveInfo,Web,,31,NULL,1,NULL
+Agency,SaveLicenseInformation,SaveDA,Web,,36,NULL,NULL,NULL
+Agency,SaveOfficerDirectorDetails,SaveODD,Web,,35,NULL,NULL,NULL
+AgencyDemographics,BusinessAddress,SaveInfo,Web,,32,NULL,1,NULL
+AgencyDemographics,MailingAddress,SaveInfo,Web,,33,NULL,1,NULL
+Appointments,DeleteAppoinmentLOA,IApDelLoa,Web,,11,NULL,NULL,NULL
+AS,EditAnnuityRows,Save,Web,,7,NULL,NULL,NULL
+AS,EditAnnuitySingleRow,Save,Web,,7,NULL,NULL,NULL
+Branch,DeleteBranchProfile,DelBrDem,Web,,39,NULL,NULL,1
+Branch,SaveBranchDemographics,BSaveBD,Web,,39,NULL,1,NULL
+Branch,SaveNewBranchDemographics,BSaveBD,Web,,39,1,NULL,NULL
+CE,,SavCECAnn,Web,AuditSection_Name=Annuity&AuditSource=CE,7,NULL,NULL,NULL
+CE,,SavCECCCP,Web,AuditSection_Name=CurrentCE&AuditSource=CE,5,NULL,NULL,NULL
+CE,,SavCECLTC,Web,AuditSection_Name=LTCP&AuditSource=CE,8,NULL,NULL,NULL
+CE,,SavCEPCP,Web,AuditSection_Name=PrevCE&AuditSource=CE,6,NULL,NULL,NULL
+CE,EditPriorSingleRow,Save,Web,,6,NULL,NULL,NULL
+CE,SaveCESummaryDetails,Save,Web,,5,NULL,NULL,NULL
+DisclosuresSummary,SaveSummaryInformation,Save,Web,,15,NULL,NULL,NULL
+DisclosureSummary,Notes,NteDiscSum,WebMain,AuditSection_Name=Dis_SummaryInsurance&AuditSource=tbrails_ins_notes,15,0,NULL,1
+Documents,,DocAgency,Web,Documents/SaveClick?AuditSection_Name=Agency&AuditSource=Documents,38,NULL,1,NULL
+Documents,,DocBrLic,Web,Documents/SaveClick?AuditSection_Name=Branch&AuditSource=Documents,42,NULL,1,NULL
+Documents,,DocDFAgen,Web,Documents/DeleteFile?AuditSection_Name=Agency&AuditSource=Documents,38,NULL,NULL,1
+Documents,,DocDFBrLi,Web,Documents/DeleteFile?AuditSection_Name=Branch&AuditSource=Documents,42,NULL,NULL,1
+Documents,,DocDFInsI,Web,Documents/DeleteFile?AuditSection_Name=Insurance&AuditSource=Documents,13,NULL,NULL,1
+Documents,,DocDSFAgen,Web,Documents/DeleteSelectedFile?AuditSection_Name=Agency&AuditSource=Documents,38,NULL,NULL,1
+Documents,,DocDSFBrLi,Web,Documents/DeleteSelectedFile?AuditSection_Name=Branch&AuditSource=Documents,42,NULL,NULL,1
+Documents,,DocDSFInsI,Web,Documents/DeleteSelectedFile?AuditSection_Name=Insurance&AuditSource=Documents,13,NULL,NULL,1
+Documents,,DocInsInd,Web,Documents/SaveClick?AuditSection_Name=Insurance&AuditSource=Documents,13,NULL,1,NULL
+Documents,,DocUNFAgen,Web,Documents/UploadFileNew?AuditSection_Name=Agency&AuditSource=Documents,38,NULL,NULL,0
+Documents,,DocUNFBrLi,Web,Documents/UploadFileNew?AuditSection_Name=Branch&AuditSource=Documents,42,NULL,NULL,0
+Documents,,DocUNFInsI,Web,Documents/UploadFileNew?AuditSection_Name=Insurance&AuditSource=Documents,13,NULL,NULL,0
+Insurance,saveAffiliationInformation,AffISAfI,Web,,12,0,0,0
+Insurance,SaveAppointmentInformation,AppISApI,Web,,11,NULL,NULL,NULL
+Insurance,SaveLicenseInformation,LicISLI,Web,,10,0,0,NULL
+License,DeleteLicenseLOA,ILiDelLoa,Web,,10,NULL,NULL,1
+License,SaveProducerType,LicLSPT,Web,,10,NULL,NULL,NULL
+LicensedBranch,SaveBranchLicense,LBSaveBL,Web,,41,NULL,NULL,NULL
+LTCP,UpdateLTCPComments,Save,Web,,8,NULL,1,NULL
+LTCP,UpdateLTCPSave,Update,Web,,8,NULL,1,NULL
+Shared,,AMDNipEHS,WebMain,AuditSection_Name=AMD&AuditSource=tbrails_ut_emp_hist,60,NULL,NULL,NULL
+Shared,,AMDNipLOA,WebMain,AuditSection_Name=AMD&AuditSource=tbrails_ut_state_loa,56,NULL,NULL,NULL
+Shared,,AMDNipSt,WebMain,AuditSection_Name=AMD&AuditSource=tbrails_ut_states,51,NULL,NULL,NULL
+Shared,,AppNipCar,WebMain,AuditSection_Name=APPT&AuditSource=tbrails_ut_appt_carrier,61,NULL,NULL,NULL
+Shared,,AppNipLOA,WebMain,AuditSection_Name=APPT&AuditSource=tbrails_ut_appt_loa,62,NULL,NULL,NULL
+Shared,,AppNipSt,WebMain,AuditSection_Name=APPT&AuditSource=tbrails_ut_states,52,NULL,NULL,NULL
+Shared,,DUPNipCor,WebMain,AuditSection_Name=Insurance2&AuditSource=tbrails_document_details,64,NULL,NULL,NULL
+Shared,,DUPNipIns,WebMain,AuditSection_Name=Insurance1&AuditSource=tbrails_document_details,64,NULL,NULL,NULL
+Shared,,DUPNipUTI,WebMain,AuditSection_Name=DUP&AuditSource=tbrails_ut_info,64,NULL,NULL,NULL
+Shared,,NRLNipEH,WebMain,AuditSection_Name=NRL&AuditSource=tbrails_ut_emp_hist,58,NULL,NULL,NULL
+Shared,,NRLNipSt,WebMain,AuditSection_Name=NRL&AuditSource=tbrails_ut_states,57,NULL,NULL,NULL
+Shared,,NRLNipStL,WebMain,AuditSection_Name=NRL&AuditSource=tbrails_ut_state_loa,54,NULL,NULL,NULL
+Shared,,NRRNipEH,WebMain,AuditSection_Name=NRR&AuditSource=tbrails_ut_emp_hist,77,NULL,NULL,NULL
+Shared,,NRRNipSt,WebMain,AuditSection_Name=NRR&AuditSource=tbrails_ut_states,75,NULL,NULL,NULL
+Shared,,NRRNipStL,WebMain,AuditSection_Name=NRR&AuditSource=tbrails_ut_state_loa,76,NULL,NULL,NULL
+Shared,,NteNipCAI,WebMain,AuditSection_Name=CarrierAppointmentInsurance&AuditSource=tbrails_ins_notes,44,NULL,NULL,NULL
+Shared,,NteNiprCA,WebMain,AuditSection_Name=CarrierAppointment-Insurance&AuditSource=tbrails_ins_notes,63,NULL,NULL,NULL
+Shared,,NteNiprTr,WebMain,AuditSection_Name=TransactionTransaction&AuditSource=tbrails_ins_notes,44,NULL,NULL,NULL
+Shared,,RLNipEH,WebMain,AuditSection_Name=RL&AuditSource=tbrails_ut_emp_hist,57,NULL,NULL,NULL
+Shared,,RLNipSt,WebMain,AuditSection_Name=RL&AuditSource=tbrails_ut_states,48,NULL,NULL,NULL
+Shared,,RLNipStL,WebMain,AuditSection_Name=RL&AuditSource=tbrails_ut_state_loa,53,NULL,NULL,NULL
+Shared,,RLRNipEH,WebMain,AuditSection_Name=RLR&AuditSource=tbrails_ut_emp_hist,57,NULL,NULL,NULL
+Shared,,RLRNipSt,WebMain,AuditSection_Name=RLR&AuditSource=tbrails_ut_states,50,NULL,NULL,NULL
+Shared,,RLRNipStL,WebMain,AuditSection_Name=RLR&AuditSource=tbrails_ut_state_loa,55,NULL,NULL,NULL
+SharedCourse,,ETLCECAnn1,ETL,AuditSection_Name=Annuity&AuditSource=tbrails_ce_course,7,NULL,NULL,NULL
+SharedCourse,,ETLCECAnn2,ETL,AuditSection_Name=Annuity&AuditSource=tbrails_ce_course_desc,7,NULL,NULL,NULL
+SharedCourse,,ETLCECAnn3,ETL,AuditSection_Name=Annuity&AuditSource=tbrails_ce_course_credit_hours,7,NULL,NULL,NULL
+SharedCourse,,ETLCELTCP1,ETL,AuditSection_Name=LTC/P&AuditSource=tbrails_ce_course,8,NULL,NULL,NULL
+SharedCourse,,ETLCELTCP2,ETL,AuditSection_Name=LTC/P&AuditSource=tbrails_ce_course_desc,8,NULL,NULL,NULL
+SharedCourse,,ETLCELTCP3,ETL,AuditSection_Name=LTC/P&AuditSource=tbrails_ce_course_credit_hours,8,NULL,NULL,NULL
+SharedCourseSummary,,ETLCCPSum,ETL,AuditSection_Name=CCP&AuditSource=tbrails_ce_summary,5,NULL,NULL,NULL
+SharedCourseSummary,,ETLPCPSum,ETL,AuditSection_Name=PCP&AuditSource=tbrails_ce_summary,6,NULL,NULL,NULL
+SharedNotes,,NteAgDisc,Web,Shared/saveNotes?AuditSection_Name=Ag_Disclosure&AuditSource=Agency,43,1,NULL,NULL
+SharedNotes,,NteAgeApp,Web,Shared/saveNotes?AuditSection_Name=Appointment&AuditSource=Agency,37,1,NULL,NULL
+SharedNotes,,NteAgeDem,Web,Shared/saveNotes?AuditSection_Name=Ag_Demographics&AuditSource=Agency,31,1,NULL,NULL
+SharedNotes,,NteAgeLic,Web,Shared/saveNotes?AuditSection_Name=Ag_License&AuditSource=Agency,36,1,NULL,NULL
+SharedNotes,,NteBrnLic,Web,Shared/saveNotes?AuditSection_Name=Br_License&AuditSource=Branch,41,1,NULL,NULL
+SharedNotes,,NteDAgDis,Web,Shared/deleteNotes?AuditSection_Name=Ag_Disclosure&AuditSource=Agency,43,NULL,NULL,1
+SharedNotes,,NteDAgeApp,Web,Shared/deleteNotes?AuditSection_Name=Appointment&AuditSource=Agency,37,NULL,NULL,1
+SharedNotes,,NteDAgeDem,Web,Shared/deleteNotes?AuditSection_Name=Ag_Demographics&AuditSource=Agency,31,NULL,NULL,1
+SharedNotes,,NteDAgeDis,Web,Shared/deleteNotes?AuditSection_Name=Appointment&AuditSource=Agency,37,NULL,NULL,1
+SharedNotes,,NteDAgeLic,Web,Shared/deleteNotes?AuditSection_Name=Ag_License&AuditSource=Agency,36,NULL,NULL,1
+SharedNotes,,NteDBrnLic,Web,Shared/deleteNotes?AuditSection_Name=Br_License&AuditSource=Branch,41,NULL,NULL,1
+SharedNotes,,NteDDisSum,Web,Shared/deleteNotes?AuditSection_Name=Dis_Summary&AuditSource=Insurance,15,NULL,NULL,1
+SharedNotes,,NteDICEAS,Web,Shared/deleteNotes?AuditSection_Name=Annuity&AuditSource=Insurance,7,NULL,NULL,1
+SharedNotes,,NteDICECCP,Web,Shared/deleteNotes?AuditSection_Name=CurrentCompliance&AuditSource=Insurance,5,NULL,NULL,1
+SharedNotes,,NteDICELTC,Web,Shared/deleteNotes?AuditSection_Name=LongTermCare&AuditSource=Insurance,8,NULL,NULL,1
+SharedNotes,,NteDICEPCP,Web,Shared/deleteNotes?AuditSection_Name=PeriorCompliance&AuditSource=Insurance,6,NULL,NULL,1
+SharedNotes,,NteDInsAff,Web,Shared/deleteNotes?AuditSection_Name=Affiliation&AuditSource=Insurance,12,NULL,NULL,1
+SharedNotes,,NteDInsApp,Web,Shared/deleteNotes?AuditSection_Name=Appointment&AuditSource=Insurance,11,NULL,NULL,1
+SharedNotes,,NteDInsLic,Web,Shared/deleteNotes?AuditSection_Name=License&AuditSource=Insurance,10,NULL,NULL,1
+SharedNotes,,NteDisSum,Web,Shared/saveNotes?AuditSection_Name=Dis_Summary&AuditSource=Insurance,15,1,NULL,NULL
+SharedNotes,,NteDLiBrDm,Web,Shared/deleteNotes?AuditSection_Name=Br_Demographics&AuditSource=Branch,39,NULL,NULL,1
+SharedNotes,,NteICEAnS,Web,Shared/saveNotes?AuditSection_Name=Annuity&AuditSource=Insurance,7,1,NULL,NULL
+SharedNotes,,NteICECCP,Web,Shared/saveNotes?AuditSection_Name=CurrentCompliance&AuditSource=Insurance,5,1,NULL,NULL
+SharedNotes,,NteICELTC,Web,Shared/saveNotes?AuditSection_Name=LongTermCare&AuditSource=Insurance,8,1,NULL,NULL
+SharedNotes,,NteICEPCP,Web,Shared/saveNotes?AuditSection_Name=PeriorCompliance&AuditSource=Insurance,6,1,NULL,NULL
+SharedNotes,,NteInsAff,Web,Shared/saveNotes?AuditSection_Name=Affiliation&AuditSource=Insurance,12,1,NULL,NULL
+SharedNotes,,NteInsApp,Web,Shared/saveNotes?AuditSection_Name=Appointment&AuditSource=Insurance,11,1,NULL,NULL
+SharedNotes,,NteInsLic,Web,Shared/saveNotes?AuditSection_Name=License&AuditSource=Insurance,10,1,NULL,NULL
+SharedNotes,,NteLiBrDem,Web,Shared/saveNotes?AuditSection_Name=Br_Demographics&AuditSource=Branch,39,1,NULL,NULL
+-- END table_audit_ctrl_action_section_defaults END --
+
+-- START table_audit_sections START --
+0,DUMMY,dummy,NULL
+1,Demographics - Business Information,Individual,Demographics - Personal Information
+2,Demographics - Business Address,Individual,Demographics - Personal Information
+3,Demographics - Personal Information,Individual,Demographics - Personal Information
+4,Demographics - Residential Address,Individual,Demographics - Personal Information
+5,Insurance - CE - CCP,Individual,Insurance - Continuing Education - Current Compliance Period
+6,Insurance - CE - PCP,Individual,Insurance - Continuing Education - Prior Compliance Period
+7,Insurance - CE - Annuity Suitability ,Individual,Insurance - Continuing Education - Annuity Suitability
+8,Insurance - CE - LTC/P,Individual,Insurance - Continuing Education - Long Term Care / Partnership
+9,Insurance - CE - Course,Individual,NULL
+10,Insurance - Licenses ,Individual,NULL
+11,Insurance - Appointments,Individual,NULL
+12,Insurance - Affiliations,Individual,NULL
+13,Documents,Individual,NULL
+14,Disclosures - FINRA,Individual,NULL
+15,Disclosures - Summary,Individual,NULL
+16,Disclosures - Insurance,Individual,NULL
+17,Disclosures - NFA,Individual,NULL
+18,Disclosures - OCC,Individual,NULL
+19,Securities - General ,Individual,NULL
+20,Securities - EOL,Individual,NULL
+21,Securities - Exams,Individual,NULL
+22,Securities - Registrations,Individual,NULL
+23,Securities - Employment History,Individual,NULL
+24,Securities - CE,Individual,NULL
+25,Securities - NFA Ethics,Individual,NULL
+26,Securities - Contact Information,Individual,NULL
+27,Securities - Production Number,Individual,NULL
+28,Seucrities - Pool,Individual,NULL
+29,Mortgage - Registrations,Individual,NULL
+30,Mortgage - General,Individual,NULL
+31,Agency - Demographics,Agency,NULL
+32,Agency - Business Address,Agency,Agency - Demographics
+33,Agency - Mailing Address,Agency,Agency - Demographics
+34,Agency - DRLP,Agency,Agency - Demographics
+35,Agency - Officers/Directors,Agency,Agency - Demographics
+36,Agency - Licenses,Agency,NULL
+37,Agency - Appointments,Agency,NULL
+38,Agency - Documents,Agency,NULL
+39,Licensed Branch - Demographics,Licensed Branch,NULL
+40,Licensed Branch - Business Address,Licensed Branch,NULL
+41,Licensed Branch - Licenses,Licensed Branch,NULL
+42,Licensed Branch - Documents,Licensed Branch,NULL
+43,Agency - Disclosures,Agency,NULL
+44,WorkQueue - Transaction History,WorkQueue,NULL
+48,Resident Initial - State,NIPR,NULL
+49,Non Resident Initial - State,NIPR,NULL
+50,Resident Renewal - State,NIPR,NULL
+51,Amend - State,NIPR,NULL
+52,Request an Appointment - State,NIPR,NULL
+53,Resident Initial - LOA,NIPR,NULL
+54,Non Resident Initial - LOA,NIPR,NULL
+55,Resident Renewal - LOA,NIPR,NULL
+56,Amend - LOA,NIPR,NULL
+57,Resident Initial - Employment History,NIPR,NULL
+58,Non Resident Initial - Employment History,NIPR,NULL
+59,Resident Renewal - Employment History,NIPR,NULL
+60,Amend - Employment History,NIPR,NULL
+61,Request an Appointment - Carrier,NIPR,NULL
+62,Request an Appointment - LOA,NIPR,NULL
+63,Request an Appointment - Policy Number,NIPR,NULL
+64,Upload a document,NIPR,NULL
+65,Resident Initial,NIPR,NULL
+66,Non Resident Initial,NIPR,NULL
+67,Resident Renewal,NIPR,NULL
+68,Amend,NIPR,NULL
+69,Request an Appointment,NIPR,NULL
+70,Resident Initial - Submit Request,NIPR,NULL
+71,Non Resident Initial - Submit Request,NIPR,NULL
+72,Resident Renewal - Submit Request,NIPR,NULL
+73,Amend - Submit Request,NIPR,NULL
+74,Request an Appointment - Submit Request,NIPR,NULL
+75,Non Resident Renewal - State,NIPR,NULL
+76,Non Resident Renewal - LOA,NIPR,NULL
+77,Non Resident Renewal - Employment History,NIPR,NULL
+78,Non Resident Renewal,NIPR,NULL
+79,Non Resident Renewal - Submit Request,NIPR,NULL
+80,View Credentials & Personal IDs,Individual,Demographics - Personal Information
+81,Firm,Firm,Firm - Firm Information
+-- END table_audit_sections END --
+
+-- START table_audit_sub_sections START --
+0,DUMMY,0
+1,Notes,10
+2,Producer Type,10
+3,Licenses on File,10
+4,Appointments on File,11
+5,Notes,11
+6,CE Actions,5
+7,CE Status,5
+8,CE Courses for Resident State,5
+9,Notes,5
+10,CE Actions,6
+11,CE Status,6
+12,CE Courses for Resident State,6
+13,Notes,6
+14,Annuity Suitability,7
+15,CE Courses Taken,7
+16,Notes,7
+17,Long Term Care / Partnership,8
+18,CE Courses Taken,8
+19,Notes,8
+20,Affiliations on File,12
+21,Notes,12
+22,Documents List,13
+23,Summary,15
+24,Notes,15
+25,View Credentials & Personal IDs,3
+26,Business Information,3
+27,Business Address Information,3
+28,Personal Information,3
+29,Residential Address Information,3
+30,Demographics,39
+31,Address,39
+32,Notes,39
+33,Licenses on File,41
+34,Notes,41
+35,Documents List,42
+36,Agency Information,31
+37,Notes,31
+38,Address Information,32
+39,Address Information,33
+40,DRLP,34
+41,Officers/Directors,35
+42,Licenses on File,36
+43,Notes,36
+44,Appointments on File,37
+45,Notes,37
+46,Agency Disclosure Questions,43
+47,Notes,43
+48,Documents List,38
+49,Documents List,64
+50,Documents List,44
+51,Transactions,44
+52,Disclosure Questions,44
+53,Notes,44
+54,Information,81
+-- END table_audit_sub_sections END --
+
+-- END table_audit_section_value_determiner END --
+tbrails_ce_course,NULL,ce_course_row_id,NULL,NULL,NULL,NULL,NULL,SELECT 'AuditSection_Name=' + IIF(ce_course_applyto_annuity_initial='Y' OR ce_course_applyto_annuity_ongoing='Y', 'Annuity','LTC/P') + '&AuditSource=tbrails_ce_course'  FROM tbrails_ce_course(nolock) WHERE ce_course_row_id={0}
+tbrails_ce_course_credit_hours,NULL,ce_course_crdhrs_id,NULL,NULL,NULL,NULL,NULL,SELECT 'AuditSection_Name=' + IIF(ce_course_applyto_annuity_initial='Y' OR ce_course_applyto_annuity_ongoing='Y', 'Annuity','LTC/P') + '&AuditSource=tbrails_ce_course_credit_hours'  FROM tbrails_ce_course(nolock) WHERE ce_course_row_id = (SELECT ce_course_row_id FROM tbrails_ce_course_credit_hours(nolock) WHERE ce_course_crdhrs_id={0})
+tbrails_ce_course_desc,NULL,ce_course_desc_row_id,NULL,NULL,NULL,NULL,NULL,SELECT 'AuditSection_Name=' + IIF(ce_course_applyto_annuity_initial='Y' OR ce_course_applyto_annuity_ongoing='Y', 'Annuity','LTC/P') + '&AuditSource=tbrails_ce_course_desc'  FROM tbrails_ce_course(nolock) WHERE ce_course_row_id = (SELECT ce_course_row_id FROM tbrails_ce_course_desc(nolock) WHERE ce_course_desc_row_id={0})
+tbrails_ce_summary,NULL,ce_summary_id,NULL,NULL,NULL,NULL,NULL,SELECT 'AuditSection_Name=' + IIF(ce_effective_dt <= CONVERT( VARCHAR(20),GETDATE(), 101) AND ce_expiration_dt >= CONVERT( VARCHAR(20),GETDATE(), 101), 'CCP', 'PCP')  + '&AuditSource=tbrails_ce_summary'  FROM tbrails_ce_summary(nolock) WHERE ce_summary_id={0}
+tbrails_document,NULL,NULL,tbrails_document_details,ProfileType,DepartmentId,NULL,NULL,NULL,NULL
+tbrails_document_details,ProfileType,DepartmentId,NULL,NULL,NULL,NULL,NULL,NULL,NULL
+tbrails_ins_notes,notes_for,notes_type,NULL,NULL,NULL,NULL,NULL,NULL,NULL
+tbrails_ut_appt_carrier,NULL,states_id,NULL,NULL,NULL,NULL,NULL,select top1 trans_type_code from tbrails_ut_info(nolock) e1 where e1.trans_id = (select top 1 trans_id from tbrails_ut_states(nolock) where states_id={0})
+tbrails_ut_appt_loa,NULL,appt_carrier_id,NULL,NULL,NULL,NULL,NULL,select top 1 trans_type_code from tbrails_ut_info(nolock) e1 where e1.trans_id = (select top 1 trans_id from tbrails_ut_states(nolock) where states_id= (select top 1 states_id from tbrails_ut_appt_carrier(nolock) where states_id= (select top 1 states_id from tbrails_ut_appt_loa(nolock) where appt_carrier_id={0})))
+tbrails_ut_emp_hist,NULL,NULL,tbrails_ut_info,trans_type_code,NULL,NULL,NULL,NULL
+tbrails_ut_info,trans_type_code,NULL,NULL,NULL,NULL,NULL,NULL,NULL
+tbrails_ut_state_loa,NULL,states_id,NULL,NULL,NULL,NULL,NULL,select top 1 trans_type_code from tbrails_ut_info(nolock) e1 where e1.trans_id = (select top 1 trans_id from tbrails_ut_states(nolock) where states_id={0})
+tbrails_ut_states,NULL,NULL,tbrails_ut_info,trans_type_code,NULL,NULL,NULL,NULL
+-- END table_audit_section_value_determiner END --
+
+-- SCHEMA --
+
+1. audit_field_metadata
+=================================
+COLUMN_NAME	DATA_TYPE	TYPE_NAME	PRECISION	LENGTH
+mapping_id	4	int identity	10	4
+field_display_name	12	varchar	100	100
+db_column_name	12	varchar	100	100
+db_table_name	12	varchar	100	100
+impacted_section_id	4	int	10	4
+auditable	-7	bit	1	1
+lookup_id_column_name	12	varchar	100	100
+lookup_description_column_name	12	varchar	100	100
+lookup_table_name	12	varchar	100	100
+dynamic_lookup_sql	-1	text	2147483647	2147483647
+considerDelete	-7	bit	1	1
+considerInsert	-7	bit	1	1
+considerModify	-7	bit	1	1
+subsection_id	4	int	10	4
+
+2. audit_sections
+========================================
+section_id	4	int identity	10	4
+section_name	-1	text	2147483647	2147483647
+profile_type	12	varchar	100	100
+parent_section_name	12	varchar	100	100
+
+3. audit_sub_sections
+===========================================
+subsection_id	4	int identity	10	4
+subsection_name	12	varchar	100	100
+section_id	4	int	10	4
+
+4. audit_section_value_determiner
+===========================================
+entity_table_name	12	varchar	100	100
+entity_section_determination_field	12	varchar	100	100
+entity_section_reference_field	12	varchar	100	100
+trans_lookup_table_name	12	varchar	100	100
+trans_lookup_section_determination_field	12	varchar	100	100
+external_lookup_table_name	12	varchar	100	100
+external_lookup_section_reference_field	12	varchar	100	100
+external_lookup_section_determination_field	12	varchar	100	100
+external_lookup_section_determination_query	-1	text	2147483647	2147483647
+
+5. audit_sub_section_record_identifiers
+===========================================
+ri_id	4	int identity	10	4
+field_display_name	12	varchar	100	100
+db_column_name	12	varchar	100	100
+db_table_name	12	varchar	100	100
+subsection_id	4	int	10	4
+dynamic_lookup_sql	-1	text	2147483647	2147483647
+Dynamic_Lookup_History_Sql	-1	text	2147483647	2147483647
+
+6. audit_ctrl_action_section_defaults
+===========================================
+controller_name	12	varchar	100	100
+controller_action_name	12	varchar	100	100
+controller_action_type	12	varchar	10	10
+source	12	varchar	100	100
+URI	-1	text	2147483647	2147483647
+default_section_id	4	int	10	4
+insert_action_flag	-7	bit	1	1
+update_action_flag	-7	bit	1	1
+delete_action_flag	-7	bit	1	1
+
+7. audit_business_id_columns
+===========================================
+business_id_column_id	4	int identity	10	4
+business_id_column_name	12	varchar	100	100
+business_id_column_table_name	12	varchar	100	100
+business_id_display_name	12	varchar	100	100
+lookup_id_column_name	12	varchar	100	100
+lookup_description_column_name	12	varchar	100	100
+lookup_table_name	12	varchar	100	100
+business_key_name	12	varchar	100	100
+dynamic_lookup_sql	-1	text	2147483647	2147483647
+Dynamic_Lookup_History_Sql	-1	text	2147483647	2147483647
+
+8. audit_sections_business_id_columns
+===========================================
+section_id	4	int	10	4
+business_id_column_id	4	int	10	4
+subsection_id	4	int	10	4
+
+8. audit_history
+===========================================
+audit_history_id	4	int identity	10	4
+module_name	12	varchar	50	50
+section_name	12	varchar	50	50
+ref_id	4	int	10	4
+field_name	12	varchar	50	50
+old_value	12	varchar	255	255
+new_value	12	varchar	255	255
+action	12	varchar	50	50
+table_name	12	varchar	50	50
+column_name	12	varchar	50	50
+created_date	11	datetime	23	16
+created_by	12	varchar	50	50
+updated_date	11	datetime	23	16
+updated_by	12	varchar	50	50
+business_id_column_id_1	4	int	10	4
+business_id_column_id_2	4	int	10	4
+business_id_column_id_3	4	int	10	4
+business_id_column_id_4	4	int	10	4
+business_id_column_id_5	4	int	10	4
+business_id_column_value_1	12	varchar	100	100
+business_id_column_value_2	12	varchar	100	100
+business_id_column_value_3	12	varchar	100	100
+business_id_column_value_4	12	varchar	100	100
+business_id_column_value_5	12	varchar	100	100
+audit_group_id	12	varchar	100	100
+ref_condition	12	varchar	300	300
+userAction	12	varchar	20	20
+updated_for	12	varchar	100	100
+subsection_name	12	varchar	100	100
+BusinessIdentifierValues	-1	text	2147483647	2147483647
+BusinessIdentifier	-1	text	2147483647	2147483647
+
+
+-- STORED PROCEDURES --
+
+
+ALTER FUNCTION [dbo].[fn_ReportParamParseDelimitedText](@param VARCHAR(3000))
+RETURNS @Strs Table(Value Varchar(100))
+AS
+BEGIN 
+	
+	DECLARE @_param VARCHAR(MAX) =  @param;
+
+	IF (@_param is Not Null) 
+	BEGIN --1
+
+		WHILE ( Len(@_param) > 0  )
+		BEGIN --2
+
+			DECLARE @CommaPos INT = CHARINDEX(',', @_param);	
+			DECLARE @Item VARCHAR(100);
+
+			IF (@CommaPos > 0)
+			BEGIN	-- 3(a)
+				IF ( ( @CommaPos - 1 ) > 0 )
+					SET @Item = SUBSTRING(@_param, 1, @CommaPos - 1);
+
+				IF ( ( Len(@_param) - @CommaPos ) > 0)
+					SET @_param = SUBSTRING(@_param, @CommaPos + 1, Len(@_param) - @CommaPos);
+				ELSE
+					SET @_param = ''
+			END		-- 3(a)
+			ELSE	-- 3(b)
+			BEGIN 
+				SET @Item = @_param;
+				SET @_param = '';
+			END		-- 3(b)
+
+			INSERT INTO @Strs VALUES(@Item);
+		END; --2
+				
+		Update @Strs Set Value = dbo.fn_ReportParamCleaner(Value, 0);		
+		Delete From @Strs Where Value IS NULL;
+	END --1
+
+	RETURN;
+END
+
+
+-- ===================================================================================================
+-- Author:		Sanjeev
+-- Create date: 02/05/2016
+-- Description:	Any Delimited string to Single Column Table.
+-- Select * From Dbo.[FN_ParseDelimitedText]('|abc' , '|')
+-- ===================================================================================================
+ALTER FUNCTION [dbo].[FN_ParseDelimitedText](@param VARCHAR(Max), @Delimiter Char = ',')
+RETURNS @Strs Table(Value Varchar(Max), RowIndex Int Identity(1,1))
+AS
+BEGIN 
+	
+	DECLARE @_param VARCHAR(MAX) =  @param;
+
+	IF (@_param is Not Null) 
+	BEGIN --1
+
+		WHILE ( Len(@_param) > 0  )
+		BEGIN --2
+
+			DECLARE @CommaPos INT = CHARINDEX(@Delimiter, @_param);	
+			DECLARE @Item VARCHAR(Max);
+
+			IF (@CommaPos > 0)
+			BEGIN	-- 3(a)
+				
+				IF ( ( @CommaPos - 1 ) > 0 )
+					SET @Item = SUBSTRING(@_param, 1, @CommaPos - 1);
+
+				IF ( ( Len(@_param) - @CommaPos ) > 0)
+					SET @_param = SUBSTRING(@_param, @CommaPos + 1, Len(@_param) - @CommaPos);
+				ELSE
+					SET @_param = ''
+			END		-- 3(a)
+			ELSE	-- 3(b)
+			BEGIN 
+				SET @Item = @_param;
+				SET @_param = '';
+			END		-- 3(b)
+
+			INSERT INTO @Strs VALUES(@Item);
+		END; --2
+				
+		Update @Strs Set Value = dbo.fn_ReportParamCleaner(Value, 0);		
+		--Delete From @Strs Where ISNULL(Value, '') = '';
+	END --1
+
+	RETURN;
+END
+
+ALTER FUNCTION [dbo].[FN_SplitString] 
+(    
+      @Input NVARCHAR(MAX),
+      @Character CHAR(1)
+)
+RETURNS @Output TABLE (
+      Item NVARCHAR(1000)
+)
+AS
+BEGIN
+      DECLARE @StartIndex INT, @EndIndex INT
+ 
+      SELECT @StartIndex = 1
+      IF SUBSTRING(@Input, LEN(@Input) - 1, LEN(@Input)) <> @Character
+      BEGIN
+            SELECT @Input = @Input + @Character
+      END
+ 
+      WHILE CHARINDEX(@Character, @Input) > 0
+      BEGIN
+            SELECT @EndIndex = CHARINDEX(@Character, @Input)
+           
+            INSERT INTO @Output(Item)
+            SELECT SUBSTRING(@Input, @StartIndex, @EndIndex - 1)
+           
+            SELECT @Input = SUBSTRING(@Input, @EndIndex + 1, LEN(@Input))
+      END
+ 
+      RETURN
+END
+
+ALTER FUNCTION [dbo].[FN_StringToList] 
+( @String VARCHAR (MAX)) 
+RETURNS @temptable 
+TABLE ([ID] VARCHAR(MAX) NULL)        
+AS        
+BEGIN        
+    DECLARE @idx INT        
+    DECLARE @slice VARCHAR(MAX)        
+       
+    SELECT @idx = 1        
+        IF LEN(@String)<1 OR @String IS NULL  RETURN        
+       
+    WHILE @idx!= 0        
+    BEGIN        
+        SET @idx = charindex(',',@String)        
+        IF @idx!=0        
+            SET @slice = LEFT(@String,@idx - 1)        
+        ELSE        
+            SET @slice = @String        
+           
+        IF(LEN(@slice)>0)   
+            INSERT INTO @temptable(ID) VALUES(@slice)        
+   
+        SET @String = RIGHT(@String,LEN(@String) - @idx)        
+        IF LEN(@String) = 0 BREAK        
+    END    
+RETURN        
+END 
+
+ALTER FUNCTION [dbo].[FN_StringToListPipe] 
+( @String VARCHAR (MAX)) 
+RETURNS @temptable 
+TABLE ([ID] VARCHAR(MAX) NULL)        
+AS
+BEGIN        
+    DECLARE @idx INT        
+    DECLARE @slice VARCHAR(MAX)        
+       
+    SELECT @idx = 1        
+        IF LEN(@String)<1 OR @String IS NULL  RETURN        
+       
+    WHILE @idx!= 0        
+    BEGIN        
+        SET @idx = charindex('|',@String)        
+        IF @idx!=0        
+            SET @slice = LEFT(@String,@idx - 1)        
+        ELSE        
+            SET @slice = @String        
+           
+        IF(LEN(@slice)>0)   
+            INSERT INTO @temptable(ID) VALUES(@slice)        
+   
+        SET @String = RIGHT(@String,LEN(@String) - @idx)        
+        IF LEN(@String) = 0 BREAK        
+    END    
+RETURN        
+END
+
+-- ===================================================================================================
+-- Author:		Sanjeev
+-- Create date: 02/05/2016
+-- Description:	Formats the String according to NEW LINE, TABS, Etc.
+--USAGE:
+--	PRINT dbo.[FN_TextFormat]('ABC\nP {0} \t\t\t\t\t {1}', '1|2', DEFAULT)
+-- ===================================================================================================
+ALTER FUNCTION [dbo].[FN_TextFormat](@Str Varchar(Max), @arguments Varchar(Max), @argumentDelimitedChar Char(1) = '|')
+RETURNS VARCHAR(MAX)
+AS
+BEGIN 
+	
+	DECLARE @_NEWLINE		CHAR(1) = CHAR(13);
+	DECLARE @_TAB			CHAR(1) = CHAR(16);
+
+	DECLARE @_OUT			VARCHAR(MAX) =	REPLACE (
+											REPLACE (
+														 @Str	, '\n', @_NEWLINE	)
+																, '\t', @_TAB		);
+	
+	DECLARE @_Args			TABLE (Value Varchar(500), Index_ Int);
+	INSERT INTO @_Args 
+	SELECT Value, RowIndex FROM dbo.FN_Audit_ParseDelimitedText( @arguments, @argumentDelimitedChar ) ;
+
+	DECLARE @_Index INT = 1;
+	WHILE (1 = 1)
+	BEGIN 
+		DECLARE @_Val VARCHAR(500);
+
+		SELECT @_Val = Value FROM @_Args WHERE Index_ = @_Index;
+		IF ( @@ROWCOUNT <= 0 ) BREAK;
+		
+		SELECT	 @_OUT		= REPLACE ( @_OUT, '{'+CAST(@_Index - 1 AS VARCHAR(500))+'}', ISNULL( @_Val, '' ) )
+				,@_Index	= @_Index + 1;
+	END;
+
+
+	RETURN @_OUT;
+	--RETURN @arguments;
+END;
+
+- ===================================================================================================
+-- Author:		Sanjeev
+-- Create date: 02/05/2016
+-- Description:	Difference between two strings...
+--USAGE:
+--	Select * From [dbo].[FN_TextDifference] ( 'ABCp', 'aBCX' );
+--		Output
+--			DiffAt      DiffValues
+--			---------	----------
+--			4           p / X
+
+--			(1 row(s) affected)
+-- ===================================================================================================
+CREATE FUNCTION [dbo].[FN_TextDifference](@Str1 Varchar(Max), @Str2 Varchar(Max))
+RETURNS @Diff Table(DiffAt INT, DiffValues Varchar(5))
+AS
+BEGIN 
+	
+	IF (@Str1 IS NULL AND @Str2 IS NULL) RETURN;
+
+	SELECT @Str1 = ISNULL(@Str1, ''), @Str2 = ISNULL(@Str2, '');
+
+	DECLARE  @_Index	INT			= 1;
+	DECLARE  @_DS1		VARCHAR(1)	= SUBSTRING(@Str1, @_Index, 1)
+			,@_DS2		VARCHAR(1)	= SUBSTRING(@Str2, @_Index, 1)
+
+	IF (@Str1 = @Str2)
+		RETURN;
+	ELSE IF (@Str1 <> '' AND @Str2 <> '')
+	BEGIN	
+		WHILE (1 = 1)
+		BEGIN		
+			SELECT	 @_DS1 = IIF ( ( LEN( @Str1 ) < @_Index ), '', SUBSTRING(@Str1, @_Index, 1) )
+					,@_DS2 = IIF ( ( LEN( @Str2 ) < @_Index ), '', SUBSTRING(@Str2, @_Index, 1) );
+
+			IF ( @_DS1 <> @_DS2 ) BREAK;
+		
+
+			SET @_Index = @_Index + 1;
+		END;
+	END
+
+	INSERT INTO @Diff VALUES(@_Index, @_DS1 + ' / ' + @_DS2 )
+	RETURN;
+END;
+GO
+
+-- ===================================================================================================
+-- Author:		Sanjeev
+-- Create date: 02/05/2016
+-- Description:	From any Table it builds a string with proper tags (fieldname|DataType=Value[~fieldname|DataType=Value[fieldname|DataType=Value ...]])
+-- Eg., for the table TBRAILS_INS_APPT_LOA the Delimited string for single row is below (only few columns are considered here)
+--		~loa_id|INT=5144296~appt_id|INT=3789851~loa|INT=343116~status|VARCHAR=AC~effective_dt|DATETIME=Feb  5 2016 12:00AM~termination_dt|DATETIME=NULL...
+-- ===================================================================================================
+CREATE PROCEDURE [dbo].[SP_BuildDelimitedText]
+	 @Table					Varchar(255)
+	,@TempTable				Varchar(255)						= NULL
+	,@TempXMLData			XML									= NULL
+	,@TempDelimitedTable	Varchar(255)						= NULL	
+AS
+BEGIN
+	SET NOCOUNT ON;
+	
+	Declare @TableSql nVarchar(2000) = 'Select @xml = (Select  * From #$0 For Xml Path(''AuditRow''), Root(''AuditTable''), type) ';
+	Declare @TableParam nVarchar(100) = '@xml Xml OUTPUT';
+		
+	Declare @xml			XML;
+	DECLARE @Cols			Table(Col		Varchar(250), Position Int, DataType Varchar(100), DataTypePrecession Varchar(100) , IsDateTime Bit DEFAULT ( 0 ) );
+	DECLARE @XMlRows		Table(RowVal	XML,		  RowNum INT IDENTITY(1,1) );
+	DECLARE	@XMLDistCols	Table(Col		Varchar(250) );
+	DECLARE @DelimitedStrs	Table(Ds Varchar(Max), Index_ Int Identity(1,1));
+	
+	DECLARE @_OtherType		VARCHAR(100) = '=''+ISNULL(CAST($COL$ As Varchar), ''NULL'')';
+	DECLARE @_DateType		VARCHAR(100) = '=''+ISNULL(CONVERT(VARCHAR(50), $COL$ , 109), ''NULL'')';
+	
+	INSERT INTO @Cols 
+	Select	 COLUMN_NAME
+			,ORDINAL_POSITION
+			,IIF(ISCommonDataType = 1, DType , 'TEXT')
+			,IIF(ISCommonDataType = 1, DTypeStr , REPLACE( DTypeStr, 'VARCHAR(-1)', 'TEXT' ) )
+			,IIF(DType = 'DATETIME', 1, 0)
+	FROM 
+	(
+		Select	 COLUMN_NAME
+				,ORDINAL_POSITION
+				,Upper(Data_Type) DType
+				,Upper(DATA_TYPE) + ISNULL(REPLACE('($)', '$', CHARACTER_MAXIMUM_LENGTH), '' ) DTypeStr
+				,IIF( ISNULL(CHARACTER_MAXIMUM_LENGTH, 0 ) >= 0, 1, 0) ISCommonDataType
+		From INFORMATION_SCHEMA.COLUMNS 
+		Where Table_name = @Table
+	) AllColumnsFromTable;
+
+	IF ( @TempTable IS NOT NULL AND @TempXMLData IS NULL )
+	BEGIN
+		Set @TableSql =  REPLACE ( @TableSql, '$0', @TempTable) ;
+		Exec SP_ExecuteSql @TableSql, @TableParam, @xml = @xml OUTPUT;
+		SET @TempXMLData = @xml;
+	END;
+
+
+	;WITH XmlColumns AS
+	(
+		Select Distinct Col FROM 
+		(
+			SELECT	NodeName = C.value('local-name(.)', 'varchar(255)'),
+					NodeValue = C.value('(.)[1]', 'varchar(Max)') 
+			FROM @TempXMLData.nodes('/AuditTable/AuditRow/*') AS T(C)
+		) Nodes(Col, Val)
+	)
+	INSERT INTO @XMLDistCols
+	SELECT COL FROM XmlColumns;
+		
+	;With XmlNodeTab(XmlNOdecol) AS
+	(
+		Select @TempXMLData 
+	),
+	XmlRecords As		--Extract Each Node as Separate Row --
+	(
+		SELECT	Col.query('.') XmlRec
+		FROM	XmlNodeTab
+		CROSS APPLY XmlNodeCol.nodes('/AuditTable/AuditRow') AS Tbl(Col)			-- cross apply XMLCol.nodes('//*[local-name()=sql:variable("@NodeName")]') as T(N)
+	)
+	INSERT INTO @XMlRows
+	SELECT XmlRec FROM XmlRecords;
+					
+	
+
+	DECLARE @_Index INT = 1;
+	WHILE ( 1 = 1 )
+	BEGIN
+		DECLARE @_RowXML		XML;
+		DECLARE @_RowValues		Table(Col Varchar(300), Value Varchar(Max));
+
+		SELECT @_RowXML = RowVal FROM @XMlRows WHERE RowNum = @_Index;
+		IF ( @@ROWCOUNT <= 0 ) BREAK;
+
+		DELETE FROM @_RowValues;
+
+		INSERT INTO @_RowValues
+		SELECT		C.value('local-name(.)', 'varchar(255)'),
+					C.value('(.)[1]', 'varchar(Max)') 
+		FROM @_RowXML.nodes('/AuditRow/*') AS T(C)
+
+
+		;WITH  XmlColumns AS
+		(
+			SELECT C.Col
+			FROM @Cols C JOIN @_RowValues V On C.Col = V.Col
+		),
+		DelimtedStrs(Value, IsDateTime, Col, Pos) AS		
+		(			
+			Select C.Col + '|' +  Upper(DataType) + '=$COLVAL$', IsDateTime, Upper(C.Col), C.Position
+			From @Cols C LEFT OUTER JOIN XmlColumns X On C.Col = X.Col
+		)		
+		INSERT INTO @DelimitedStrs
+		SELECT STUFF(
+						(	SELECT	'~' + REPLACE(D.Value, '$COLVAL$', IIF(ISNULL(R.Value, '') = '', 'NULL', R.Value ) )
+							FROM	DelimtedStrs D LEFT OUTER JOIN @_RowValues R ON D.Col = R.Col
+							ORDER BY D.Pos
+							FOR XML PATH('')
+						), 1,1, '~' )
+
+		
+		SET @_Index = @_Index + 1;
+	END;
+	
+	IF ( @TempDelimitedTable IS NOT NULL )
+	BEGIN
+		CREATE  TABLE #TEMP_DelimitedStrs	(Ds Varchar(Max), Index_ Int Identity(1,1));
+		DECLARE @Temp_Sql nvarchar(1000) = REPLACE('INSERT INTO $0 SELECT * FROM #Temp_Audit_DelimitedStrs', '$0', @TempDelimitedTable );
+		
+		INSERT INTO #TEMP_DelimitedStrs SELECT Ds FROM @DelimitedStrs;
+		Exec SP_ExecuteSql @Temp_Sql;
+
+		DROP TABLE #TEMP_DelimitedStrs;
+	END
+END;
+GO
+
+
+
+CREATE FUNCTION [dbo].[FN_ListFromDeimitedStr]
+(    
+     @DelimitedValues Varchar(Max)
+)
+RETURNS @Output TABLE	(
+							 Col		Varchar(250)
+							,Value		Varchar(MAX)
+							,DataType	Varchar(50)
+						)
+AS
+BEGIN
+      Declare @Index Int = -2;
+
+	  While (@Index <> 0)
+	  Begin 
+
+		Declare @Record Varchar(5000);
+		Declare @TypeIndex Int, @ValIndex Int;
+		
+		Set @Index = CHARINDEX('~', @DelimitedValues);
+		
+		Set @Record = IIF(@Index > 0,  LEFT(@DelimitedValues,@Index - 1), @DelimitedValues);
+		Set @DelimitedValues = IIF(@Index > 0, SubString(@DelimitedValues, @Index + 1, Len(@DelimitedValues) - @Index), '');
+
+		
+		If (@Record <> '')
+		Begin
+			Select @TypeIndex = CHARINDEX('|', @Record), @ValIndex = CHARINDEX('=', @Record);
+
+			Insert Into @Output Values (	RTRIM(LTRIM(LEFT(@Record, @TypeIndex - 1))), 
+											RTRIM(LTRIM(RIGHT(@Record, Len(@Record) - @ValIndex))), 
+											RTRIM(LTRIM(Substring(@Record, @TypeIndex + 1, @ValIndex - @TypeIndex - 1))) 										
+										);
+		End
+
+	  End
+	  Update @Output Set Value = NULL Where Value = 'NULL';
+ 
+      RETURN 
+END
+
+
+
+
+-- VIEWS --
+
+IF EXISTS ( SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].VWRAILS_RELATIONALTABLES_VIAFOREIGNKEYS') AND type in (N'V') )
+	DROP VIEW [DBO].VWRAILS_RELATIONALTABLES_VIAFOREIGNKEYS
+GO
+
+CREATE VIEW [DBO].VWRAILS_RELATIONALTABLES_VIAFOREIGNKEYS			-- select * from VWRAILS_RELATIONALTABLES_VIAFOREIGNKEYS
+AS
+	SELECT  obj.name AS		FK_NAME,
+			sch.name AS		[schema_name],
+			tab1.name AS	[table],
+			col1.name AS	[column],
+			tab2.name AS	[referenced_table],
+			col2.name AS	[referenced_column]
+		FROM sys.foreign_key_columns fkc
+		INNER JOIN sys.objects obj
+			ON obj.object_id = fkc.constraint_object_id
+		INNER JOIN sys.tables tab1
+			ON tab1.object_id = fkc.parent_object_id
+		INNER JOIN sys.schemas sch
+			ON tab1.schema_id = sch.schema_id
+		INNER JOIN sys.columns col1
+			ON col1.column_id = parent_column_id AND col1.object_id = tab1.object_id
+		INNER JOIN sys.tables tab2
+			ON tab2.object_id = fkc.referenced_object_id
+		INNER JOIN sys.columns col2
+			ON col2.column_id = referenced_column_id AND col2.object_id = tab2.object_id
+Go
+
